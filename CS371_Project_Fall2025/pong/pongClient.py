@@ -158,9 +158,6 @@ def playGame(screenWidth:int, screenHeight:int, playerPaddle:str, client:socket.
 
         # =========================================================================================
 
-
-
-
 # This is where you will connect to the server to get the info required to call the game loop.  Mainly
 # the screen width, height and player paddle (either "left" or "right")
 # If you want to hard code the screen's dimensions into the code, that's fine, but you will need to know
@@ -175,13 +172,12 @@ def joinServer(ip:str, port:str, errorLabel:tk.Label, app:tk.Tk) -> None:
     
     # Create a socket and connect to the server
     # You don't have to use SOCK_STREAM, use what you think is best
-    client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-
+    print("Connecting to server at", ip, "on port", port)
+    config = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     # NEW CODE HERE TO CONNECT TO SERVER AND GET INFO
-    client.connect((ip, int(port)))
-    client.bind((ip, int(port)))
-    client.listen(2)
-    conn, addr = client.accept() # Accept a new connection
+    config.connect((ip, int(port)))
+    config.listen()
+    conn, addr = config.accept() # Accept a new connection
     with conn:
         print(f"Connected by {addr}")
         while True:
