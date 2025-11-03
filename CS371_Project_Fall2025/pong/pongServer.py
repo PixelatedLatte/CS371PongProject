@@ -15,10 +15,10 @@ import threading
 # for each player and where the ball is, and relay that to each client
 # I suggest you use the sync variable in pongClient.py to determine how out of sync your two
 # clients are and take actions to resync the games
-
+'''
 HOST = '10.47.65.55' # Remember to change if ip address changes
-PORT = 50007 # Always keep this port the same
-
+PORT = 50007 # Always keep this port the same between server and clients
+'''
 def handle_client(conn, addr):
     print(f"[NEW CONNECTION] {addr} connected.")
     conn.sendall("Hello from the server!".encode('utf-8'))
@@ -47,4 +47,6 @@ def start_server():
         thread.start()
 
 if __name__ == "__main__":
+    HOST = input ("Enter server IP address (default)")
+    PORT = int(input("Enter server port number"))
     start_server()
