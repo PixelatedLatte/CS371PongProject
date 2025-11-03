@@ -83,7 +83,7 @@ def playGame(screenWidth:int, screenHeight:int, playerPaddle:str, client:socket.
         # Your code here to send an update to the server on your paddle's information,
         # where the ball is and the current score.
         # Feel free to change when the score is updated to suit your needs/requirements
-        
+            
         
         # =========================================================================================
 
@@ -177,6 +177,21 @@ def joinServer(ip:str, port:str, errorLabel:tk.Label, app:tk.Tk) -> None:
     # You don't have to use SOCK_STREAM, use what you think is best
     client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
+    # NEW CODE HERE TO CONNECT TO SERVER AND GET INFO
+    client.connect((ip, int(port)))
+    client.bind((ip, int(port)))
+    client.listen(2)
+    conn, addr = client.accept() # Accept a new connection
+    with conn:
+        print(f"Connected by {addr}")
+        while True:
+            data = conn.recv(1024) # Receive up to 1024 bytes of data
+            if not data:
+                break # If no data, the client has closed the connection
+            print(f"Received from client: {data.decode()}") # Decode bytes to string
+            conn.sendall(data) # Optionally, echo the data back to the client
+
+
     # Get the required information from your server (screen width, height & player paddle, "left or "right)
 
 
@@ -193,6 +208,7 @@ def joinServer(ip:str, port:str, errorLabel:tk.Label, app:tk.Tk) -> None:
 
 # This displays the opening screen, you don't need to edit this (but may if you like)
 def startScreen():
+    print("Starting Pong Client...")
     app = tk.Tk()
     app.title("Server Info")
 
@@ -216,13 +232,14 @@ def startScreen():
     errorLabel = tk.Label(text="")
     errorLabel.grid(column=0, row=4, columnspan=2)
 
+    print("testvar in pongClient:", testvar)
     joinButton = tk.Button(text="Join", command=lambda: joinServer(ipEntry.get(), portEntry.get(), errorLabel, app))
     joinButton.grid(column=0, row=3, columnspan=2)
 
     app.mainloop()
 
 if __name__ == "__main__":
-    #startScreen()
+    startScreen()
     
     # Uncomment the line below if you want to play the game without a server to see how it should work
     # the startScreen() function should call playGame with the arguments given to it by the server this is
