@@ -16,8 +16,8 @@ import threading
 # I suggest you use the sync variable in pongClient.py to determine how out of sync your two
 # clients are and take actions to resync the games
 
-HOST = '127.0.0.1'  # Standard loopback interface address (localhost)
-PORT = 65432        # Port to listen on (non-privileged ports are > 1023)
+HOST = '0.0.0.0'  # Standard loopback interface address (localhost)
+PORT = 8000       # Port to listen on (non-privileged ports are > 1023)
 
 s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 s.bind((HOST, PORT))
