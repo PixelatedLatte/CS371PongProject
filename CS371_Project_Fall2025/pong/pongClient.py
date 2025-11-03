@@ -173,19 +173,32 @@ def joinServer(ip:str, port:str, errorLabel:tk.Label, app:tk.Tk) -> None:
     # Create a socket and connect to the server
     # You don't have to use SOCK_STREAM, use what you think is best
     print("Connecting to server at", ip, "on port", port)
-    config = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    # NEW CODE HERE TO CONNECT TO SERVER AND GET INFO
-    config.connect((ip, int(port)))
-    config.listen()
-    conn, addr = config.accept() # Accept a new connection
-    with conn:
-        print(f"Connected by {addr}")
-        while True:
-            data = conn.recv(1024) # Receive up to 1024 bytes of data
-            if not data:
-                break # If no data, the client has closed the connection
-            print(f"Received from client: {data.decode()}") # Decode bytes to string
-            conn.sendall(data) # Optionally, echo the data back to the client
+    try:
+        client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        client.connect((ip, int(port)))  # ✅ Client connects only
+
+        # Receive message from server
+        data = client.recv(1024)
+        print("Received from server:", data.decode())
+
+        # Send a message back
+        client.sendall("Hello from client!".encode('utf-8'))
+        response = client.recv(1024).decode()
+        print("Server responded:", response)
+
+        # Update UI
+        errorLabel.config(text=f"Connected successfully to {ip}:{port}")
+        errorLabel.update()
+
+        # (Later) use client to play the game
+        app.withdraw()
+        playGame(640, 480, "left", client)
+        app.quit()
+
+    except Exception as e:
+        errorLabel.config(text=f"Connection failed: {e}")
+        errorLabel.update()
+
 
 
     # Get the required information from your server (screen width, height & player paddle, "left or "right)
