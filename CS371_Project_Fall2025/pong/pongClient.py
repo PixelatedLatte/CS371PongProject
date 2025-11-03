@@ -1,8 +1,8 @@
 # =================================================================================================
-# Contributing Authors:	    <Anyone who touched the code>
-# Email Addresses:          <Your uky.edu email addresses>
-# Date:                     <The date the file was last edited>
-# Purpose:                  <How this file contributes to the project>
+# Contributing Authors:	    Jacob Blankenship, Daniel Krutsick
+# Email Addresses:          jrbl245@uky.edu, djkr228@uky.edu
+# Date:                     11/3/2025
+# Purpose:                  The Client member of our Pong game
 # Misc:                     <Not Required.  Anything else you might want to include>
 # =================================================================================================
 
@@ -12,7 +12,7 @@ import sys
 import socket
 
 from assets.code.helperCode import *
-
+testvar = 5
 # This is the main game loop.  For the most part, you will not need to modify this.  The sections
 # where you should add to the code are marked.  Feel free to change any part of this project
 # to suit your needs.
