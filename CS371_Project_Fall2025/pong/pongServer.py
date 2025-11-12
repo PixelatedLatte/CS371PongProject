@@ -19,6 +19,7 @@ import threading
 HOST = '10.47.65.55' # Remember to change if ip address changes
 PORT = 50007 # Always keep this port the same between server and clients
 '''
+clients = []
 def handle_client(conn, addr):
     print(f"[NEW CONNECTION] {addr} connected.")
     conn.sendall("Hello from the server!".encode('utf-8'))
@@ -27,8 +28,10 @@ def handle_client(conn, addr):
             data = conn.recv(1024)
             if not data:
                 break
+            
             print(f"Received from {addr}: {data.decode()}")
             conn.sendall(f"Server echo: {data.decode()}".encode('utf-8'))
+
     except ConnectionResetError:
         pass
     finally:
@@ -43,6 +46,7 @@ def start_server():
 
     while True:
         conn, addr = s.accept()
+        clients.append(conn)
         thread = threading.Thread(target=handle_client, args=(conn, addr))
         thread.start()
 

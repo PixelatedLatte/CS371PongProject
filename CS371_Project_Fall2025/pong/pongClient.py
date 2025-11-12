@@ -83,7 +83,11 @@ def playGame(screenWidth:int, screenHeight:int, playerPaddle:str, client:socket.
         # Your code here to send an update to the server on your paddle's information,
         # where the ball is and the current score.
         # Feel free to change when the score is updated to suit your needs/requirements
-            
+        try:
+            msg = f"{playerPaddle}:{playerPaddleObj.rect.y}"
+            client.sendall(msg.encode('utf-8'))
+        except:
+            print("Lost connection!")
         
         # =========================================================================================
 
