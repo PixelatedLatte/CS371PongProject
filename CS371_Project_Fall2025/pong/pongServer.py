@@ -16,7 +16,6 @@ import threading
 # I suggest you use the sync variable in pongClient.py to determine how out of sync your two
 # clients are and take actions to resync the games
 '''
-HOST = '10.47.65.55' # Remember to change if ip address changes
 PORT = 50007 # Always keep this port the same between server and clients
 '''
 clients = []
@@ -38,7 +37,7 @@ def handle_client(conn, addr):
         conn.close()
         print(f"[DISCONNECTED] {addr}")
 
-def start_server():
+def start_server(HOST, PORT):
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     s.bind((HOST, PORT))
     s.listen()
@@ -53,4 +52,4 @@ def start_server():
 if __name__ == "__main__":
     HOST = input ("Enter server IP address (default)")
     PORT = int(input("Enter server port number"))
-    start_server()
+    start_server(HOST, PORT)
