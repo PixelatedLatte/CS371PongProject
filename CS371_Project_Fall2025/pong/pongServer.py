@@ -60,10 +60,15 @@ def handle_client(conn: socket.socket, addr):
             if message1:
                 print(f"[{addr}] Parsed message: {message1}")
                 # Optional: echo back or broadcast
-                conn.sendall((f"PN:{message1['name']}:PP:{message1['pos']}:BX:{message1['bx']}:BY:{message1['by']}:"
-                            f"LS:{message1['lscore']}:RS:{message1['rscore']}:TM:{message1['time']}\n").encode('utf-8'))
-                conn.sendall((f"PN:{message2['name']}:PP:{message2['pos']}:BX:{message2['bx']}:BY:{message2['by']}:"
-                            f"LS:{message2['lscore']}:RS:{message2['rscore']}:TM:{message2['time']}\n").encode('utf-8'))
+            transmit1 = (
+                f"PN:{message1['name']}:PP:{message1['pos']}:BX:{message1['bx']}:BY:{message1['by']}:"
+                f"LS:{message1['lscore']}:RS:{message1['rscore']}:TM:{message1['time']}:CONN:{conn}\n")
+            transmit2 = (
+                f"PN:{message2['name']}:PP:{message2['pos']}:BX:{message2['bx']}:BY:{message2['by']}:"
+                f"LS:{message2['lscore']}:RS:{message2['rscore']}:TM:{message2['time']}:CONN:{conn}\n")
+            broadcast(transmit1.encode('utf-8'), conn)
+            broadcast(transmit2.encode('utf-8'), conn)
+
     except ConnectionResetError:
         pass
     finally:
