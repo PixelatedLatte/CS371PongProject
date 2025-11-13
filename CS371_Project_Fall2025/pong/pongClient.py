@@ -9,6 +9,7 @@
 import pygame
 import tkinter as tk
 import sys
+import threading
 import socket
 
 from assets.code.helperCode import *
@@ -162,6 +163,15 @@ def playGame(screenWidth:int, screenHeight:int, playerPaddle:str, client:socket.
 
         # =========================================================================================
 
+def receive_messages(sock):
+    while True:
+        try:
+            message = sock.recv(1024).decode('utf-8')
+            if message:
+                print(message)
+        except:
+            print("Connection closed by server.")
+            break
 # This is where you will connect to the server to get the info required to call the game loop.  Mainly
 # the screen width, height and player paddle (either "left" or "right")
 # If you want to hard code the screen's dimensions into the code, that's fine, but you will need to know
@@ -181,9 +191,11 @@ def joinServer(ip:str, port:str, errorLabel:tk.Label, app:tk.Tk) -> None:
         client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         client.connect((ip, int(port)))  # ✅ Client connects only
 
-        # Receive message from server
-        data = client.recv(1024)
-        print("Received from server:", data.decode())
+        
+        # Receive message from server continuously
+        threading.Thread(target=receive_messages, args=(client,), daemon=True).start()
+        # data = client.recv(1024)
+        # print("Received from server:", data.decode())
 
         # Send a message back
         client.sendall("Hello from client!".encode('utf-8'))
@@ -213,10 +225,10 @@ def joinServer(ip:str, port:str, errorLabel:tk.Label, app:tk.Tk) -> None:
     # You may or may not need to call this, depending on how many times you update the label
     errorLabel.update()     
 
-    # Close this window and start the game with the info passed to you from the server
-    #app.withdraw()     # Hides the window (we'll kill it later)
-    #playGame(screenWidth, screenHeight, ("left"|"right"), client)  # User will be either left or right paddle
-    #app.quit()         # Kills the window
+    #Close this window and start the game with the info passed to you from the server
+    # app.withdraw()     # Hides the window (we'll kill it later)
+    # playGame(screenWidth, screenHeight, ("left"|"right"), client)  # User will be either left or right paddle
+    # app.quit()         # Kills the window
 
 
 # This displays the opening screen, you don't need to edit this (but may if you like)

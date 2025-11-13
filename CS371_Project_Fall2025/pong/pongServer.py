@@ -9,7 +9,7 @@
 # netstat -ano | findstr :<your_port_number>
 # THIS WILL GIVE YOU THE PID OF THE PROCESS USING THE PORT
 # THEN USE THE COMMAND:
-# taskkill /PID <that_pid> /F
+# taskkill /PID <that_pid> /
 
 import socket
 import threading
@@ -24,6 +24,15 @@ import threading
 PORT = 50007 # Always keep this port the same between server and clients
 '''
 clients = []
+
+def broadcast(message, sender):
+    for client in clients:
+        if client != sender:
+            try:#Successfully sent message
+                client.sendall(message)
+            except:#Send failed, remove client with error
+                clients.remove(client)
+
 def handle_client(conn, addr):
     print(f"[NEW CONNECTION] {addr} connected.")
     conn.sendall("Hello from the server!".encode('utf-8'))
@@ -34,13 +43,14 @@ def handle_client(conn, addr):
                 break
             
             print(f"Received from {addr}: {data.decode()}")
-            conn.sendall(f"Server echo: {data.decode()}".encode('utf-8'))
+            broadcast(f"Server echo: {data.decode()}".encode('utf-8'), conn)
 
     except ConnectionResetError:
         pass
     finally:
-        conn.close()
         print(f"[DISCONNECTED] {addr}")
+        clients.remove(conn)
+        conn.close()
 
 def start_server():
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
