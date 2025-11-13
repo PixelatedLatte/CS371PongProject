@@ -111,6 +111,8 @@ def playGame(screenWidth:int, screenHeight:int, playerPaddle:str, client:socket.
             winMessage = screen.blit(textSurface, textRect)
             time.sleep(3)
             pygame.quit()
+            client.close()
+            return 0
         else:
 
             # ==== Ball Logic =====================================================================
