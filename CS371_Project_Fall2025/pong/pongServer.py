@@ -5,6 +5,11 @@
 # Purpose:                  The Server member of our Pong game
 # Misc:                     <Not Required.  Anything else you might want to include>
 # =================================================================================================
+# TO FREE UP PORT NUMBER ON WINDOWS, USE THE FOLLOWING COMMAND IN CMD:
+# netstat -ano | findstr :<your_port_number>
+# THIS WILL GIVE YOU THE PID OF THE PROCESS USING THE PORT
+# THEN USE THE COMMAND:
+# taskkill /PID <that_pid> /F
 
 import socket
 import threading
@@ -37,7 +42,7 @@ def handle_client(conn, addr):
         conn.close()
         print(f"[DISCONNECTED] {addr}")
 
-def start_server(HOST, PORT):
+def start_server():
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     s.bind((HOST, PORT))
     s.listen()
@@ -50,6 +55,6 @@ def start_server(HOST, PORT):
         thread.start()
 
 if __name__ == "__main__":
-    HOST = input ("Enter server IP address (default)")
-    PORT = int(input("Enter server port number"))
-    start_server(HOST, PORT)
+    HOST = input ("Enter server IP address (default): ")
+    PORT = int(input("Enter server port number: "))
+    start_server()

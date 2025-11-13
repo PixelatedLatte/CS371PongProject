@@ -84,7 +84,7 @@ def playGame(screenWidth:int, screenHeight:int, playerPaddle:str, client:socket.
         # where the ball is and the current score.
         # Feel free to change when the score is updated to suit your needs/requirements
         try:
-            msg = f"{playerPaddle}:{playerPaddleObj.rect.y}:{ball.rect.x},{ball.rect.y}:{lScore},{rScore}:{sync}"
+            msg = f"PADDLENAME:{playerPaddle}|PADDLEPOS:{playerPaddleObj.rect.y}|BX:{ball.rect.x},BY:{ball.rect.y}|LSCORE:{lScore}|RSCORE:{rScore}|TIME:{sync}"
             client.sendall(msg.encode('utf-8'))
         except:
             print("Lost connection!")
