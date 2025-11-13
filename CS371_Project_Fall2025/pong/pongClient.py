@@ -10,6 +10,7 @@ import pygame
 import tkinter as tk
 import sys
 import socket
+import time
 
 from assets.code.helperCode import *
 testvar = 5
@@ -84,7 +85,7 @@ def playGame(screenWidth:int, screenHeight:int, playerPaddle:str, client:socket.
         # where the ball is and the current score.
         # Feel free to change when the score is updated to suit your needs/requirements
         try:
-            msg = f"PADDLENAME:{playerPaddle}|PADDLEPOS:{playerPaddleObj.rect.y}|BX:{ball.rect.x},BY:{ball.rect.y}|LSCORE:{lScore}|RSCORE:{rScore}|TIME:{sync}"
+            msg = f"PADDLENAME:{playerPaddle}:PADDLEPOS:{playerPaddleObj.rect.y}:BX:{ball.rect.x}:BY:{ball.rect.y}:LSCORE:{lScore}:RSCORE:{rScore}:TIME:{sync}\n"
             client.sendall(msg.encode('utf-8'))
         except:
             print("Lost connection!")
@@ -107,6 +108,8 @@ def playGame(screenWidth:int, screenHeight:int, playerPaddle:str, client:socket.
             textRect = textSurface.get_rect()
             textRect.center = ((screenWidth/2), screenHeight/2)
             winMessage = screen.blit(textSurface, textRect)
+            time.sleep(3)
+            pygame.quit()
         else:
 
             # ==== Ball Logic =====================================================================
@@ -186,9 +189,9 @@ def joinServer(ip:str, port:str, errorLabel:tk.Label, app:tk.Tk) -> None:
         print("Received from server:", data.decode())
 
         # Send a message back
-        client.sendall("Hello from client!".encode('utf-8'))
-        response = client.recv(1024).decode()
-        print("Server responded:", response)
+        # client.sendall("Hello from client!".encode('utf-8'))
+        # response = client.recv(1024).decode()
+        # print("Server responded:", response)
 
         # Update UI
         errorLabel.config(text=f"Connected successfully to {ip}:{port}")
