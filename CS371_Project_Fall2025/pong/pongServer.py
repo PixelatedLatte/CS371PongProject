@@ -17,13 +17,12 @@ import re
 
 clients = []
 
-def broadcast(message, sender):
+def broadcast(message):
     for client in clients:
-        if client != sender:
-            try:#Successfully sent message
-                client.sendall(message)
-            except:#Send failed, remove client with error
-                clients.remove(client)
+        try:#Successfully sent message
+            client.sendall(message)
+        except:#Send failed, remove client with error
+            clients.remove(client)
 
 
 # Regex to parse each game message
@@ -50,7 +49,7 @@ def parse_game_state(message: str):
 def handle_client(conn: socket.socket, addr):
     print(f"[NEW CONNECTION] {addr} connected.")
     try:
-        conn.sendall("Hello from the server!".encode('utf-8'))
+        #conn.sendall("Hello from the server!".encode('utf-8'))
         while True:
             data = conn.recv(4096)
             if not data:
@@ -66,8 +65,8 @@ def handle_client(conn: socket.socket, addr):
             transmit2 = (
                 f"PN:{message2['name']}:PP:{message2['pos']}:BX:{message2['bx']}:BY:{message2['by']}:"
                 f"LS:{message2['lscore']}:RS:{message2['rscore']}:TM:{message2['time']}:CONN:{conn}\n")
-            broadcast(transmit1.encode('utf-8'), conn)
-            broadcast(transmit2.encode('utf-8'), conn)
+            broadcast(transmit1.encode('utf-8'))
+            broadcast(transmit2.encode('utf-8'))
 
     except ConnectionResetError:
         pass
