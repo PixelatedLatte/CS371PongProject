@@ -47,9 +47,10 @@ def parse_game_state(message: str):
 
 
 def handle_client(conn: socket.socket, addr):
+    global usercount
+    usercount += 1
     print(f"[NEW CONNECTION] {addr} connected.")
     try:
-        #conn.sendall("Hello from the server!".encode('utf-8'))
         while True:
             data = conn.recv(4096)
             if not data:
@@ -59,14 +60,11 @@ def handle_client(conn: socket.socket, addr):
             if message1:
                 print(f"[{addr}] Parsed message: {message1}")
                 # Optional: echo back or broadcast
-            transmit1 = (
-                f"PN:{message1['name']}:PP:{message1['pos']}:BX:{message1['bx']}:BY:{message1['by']}:"
-                f"LS:{message1['lscore']}:RS:{message1['rscore']}:TM:{message1['time']}:CONN:{conn}\n")
-            transmit2 = (
-                f"PN:{message2['name']}:PP:{message2['pos']}:BX:{message2['bx']}:BY:{message2['by']}:"
-                f"LS:{message2['lscore']}:RS:{message2['rscore']}:TM:{message2['time']}:CONN:{conn}\n")
-            broadcast(transmit1.encode('utf-8'))
-            broadcast(transmit2.encode('utf-8'))
+                transmit = (
+                    f"PN:{message1['name']}:PP:{message1['pos']}:BX:{message1['bx']}:BY:{message1['by']}:" 
+                    f"LS:{message1['lscore']}:RS:{message1['rscore']}:TM:{message1['time']}\n"
+                ).encode('utf-8')
+                broadcast(transmit)
 
     except ConnectionResetError:
         pass
@@ -75,15 +73,14 @@ def handle_client(conn: socket.socket, addr):
         print(f"[DISCONNECTED] from: {addr}")
         if conn in clients:
             clients.remove(conn)
+        usercount -= 1
 
 def start_server():
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)  # allow quick restart
     s.bind((HOST, PORT))
     s.listen()
     s.settimeout(1.0)#For periodically checking for KeyboardInterrupt
     print(f"[LISTENING] Server listening on {HOST}:{PORT}")
-
     running = True
 
     try:
@@ -110,6 +107,8 @@ def start_server():
         print("[SERVER CLOSED]")
 
 if __name__ == "__main__":
+    global usercount
+    usercount = 0
     HOST = input("Enter server IP address (default 0.0.0.0): ") or "0.0.0.0"
     PORT = int(input("Enter server port number: ") or 50007)
     start_server()

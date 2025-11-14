@@ -218,6 +218,8 @@ def parse_game_state(message: str):
         return {}, {}
 
 def receive_messages(sock):
+    firstchunk = sock.recv(1024).decode('utf-8')
+    print(f"[RECEIVED FIRST CHUNK]: {firstchunk}")
     while True:
         print("[RECEIVING MESSAGES]")
         try:
@@ -236,6 +238,7 @@ def receive_messages(sock):
 # If you want to hard code the screen's dimensions into the code, that's fine, but you will need to know
 # which client is which
 def joinServer(ip:str, port:str, errorLabel:tk.Label, app:tk.Tk) -> None:
+
     # Purpose:      This method is fired when the join button is clicked
     # Arguments:
     # ip            A string holding the IP address of the server
@@ -273,7 +276,6 @@ def joinServer(ip:str, port:str, errorLabel:tk.Label, app:tk.Tk) -> None:
 
 
     # Get the required information from your server (screen width, height & player paddle, "left or "right)
-
 
     # If you have messages you'd like to show the user use the errorLabel widget like so
     errorLabel.config(text=f"Some update text. You input: IP: {ip}, Port: {port}")
