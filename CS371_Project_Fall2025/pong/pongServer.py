@@ -14,6 +14,7 @@
 import re
 import socket
 import threading
+import re
 
 clients = []
 
@@ -28,57 +29,46 @@ def broadcast(message, sender):
 
 # Regex to parse each game message
 MSG_PATTERN = re.compile(
-    r'PADDLENAME:(?P<name>\w+):PADDLEPOS:(?P<pos>\d+):BX:(?P<bx>\d+):BY:(?P<by>\d+):LSCORE:(?P<lscore>\d+):RSCORE:(?P<rscore>\d+):TIME:(?P<time>\d+)'
-)
+    r'PN:(?P<name>\w+):PP:(?P<pos>\d+):BX:(?P<bx>\d+):BY:(?P<by>\d+):LS:(?P<lscore>\d+):RS:(?P<rscore>\d+):TM:(?P<time>\d+)')
 
-def parse_game_state(message: str) -> dict:
-    """Parses a single game message into a dictionary."""
+def parse_game_state(message: str):
     match = MSG_PATTERN.match(message)
     if match:
-        data = match.groupdict()
+        data1 = match.groupdict()
         # Convert numeric values to int
         for key in ['pos', 'bx', 'by', 'lscore', 'rscore', 'time']:
-            data[key] = int(data[key])
-        return data
+            data1[key] = int(data1[key])
+        # Make a separate copy
+        data2 = data1.copy()
+        print(f"[DEBUG] Parsed data1: {data1}")
+        print(f"[DEBUG] Parsed data2: {data2}")
+        return data1, data2
     else:
         print(f"[WARNING] Could not parse message: {message}")
-        return {}
+        return {}, {}
+
 
 def handle_client(conn: socket.socket, addr):
     print(f"[NEW CONNECTION] {addr} connected.")
     try:
         conn.sendall("Hello from the server!".encode('utf-8'))
-
-        buffer = ""  # store incomplete messages
         while True:
             data = conn.recv(4096)
             if not data:
-                break  # client disconnected
-
-            buffer += data.decode('utf-8')
-
-            # Split messages by detecting "PADDLENAME:" prefixes
-            while "PADDLENAME:" in buffer:
-                # Find start of next message
-                start_idx = buffer.find("PADDLENAME:")
-                # Find start of next "PADDLENAME:" after current
-                next_idx = buffer.find("PADDLENAME:", start_idx + 1)
-                if next_idx == -1:
-                    # No complete next message yet
-                    message = buffer[start_idx:]
-                    buffer = message  # keep as incomplete for next recv
-                    break
-                else:
-                    message = buffer[start_idx:next_idx]
-                    buffer = buffer[next_idx:]
-
-                # Parse the message
-                parsed = parse_game_state(message)
-                if parsed:
-                    print(f"[{addr}] Parsed message: {parsed}")
-
-                # Optional: echo back
-                conn.sendall(f"Server received: {message}".encode('utf-8'))
+                break
+            data = data.decode('utf-8')
+            message1,message2 = parse_game_state(data)
+            if message1:
+                print(f"[{addr}] Parsed message: {message1}")
+                # Optional: echo back or broadcast
+            transmit1 = (
+                f"PN:{message1['name']}:PP:{message1['pos']}:BX:{message1['bx']}:BY:{message1['by']}:"
+                f"LS:{message1['lscore']}:RS:{message1['rscore']}:TM:{message1['time']}:CONN:{conn}\n")
+            transmit2 = (
+                f"PN:{message2['name']}:PP:{message2['pos']}:BX:{message2['bx']}:BY:{message2['by']}:"
+                f"LS:{message2['lscore']}:RS:{message2['rscore']}:TM:{message2['time']}:CONN:{conn}\n")
+            broadcast(transmit1.encode('utf-8'), conn)
+            broadcast(transmit2.encode('utf-8'), conn)
 
     except ConnectionResetError:
         pass

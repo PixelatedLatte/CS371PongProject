@@ -5,8 +5,10 @@
 # Purpose:                  The Client member of our Pong game
 # Misc:                     <Not Required.  Anything else you might want to include>
 # =================================================================================================
-
+import queue
 import pygame
+import re
+
 import tkinter as tk
 import sys
 import threading
@@ -86,7 +88,7 @@ def playGame(screenWidth:int, screenHeight:int, playerPaddle:str, client:socket.
         # where the ball is and the current score.
         # Feel free to change when the score is updated to suit your needs/requirements
         try:
-            msg = f"PADDLENAME:{playerPaddle}:PADDLEPOS:{playerPaddleObj.rect.y}:BX:{ball.rect.x}:BY:{ball.rect.y}:LSCORE:{lScore}:RSCORE:{rScore}:TIME:{sync}\n"
+            msg = f"PN:{playerPaddle}:PP:{playerPaddleObj.rect.y}:BX:{ball.rect.x}:BY:{ball.rect.y}:LS:{lScore}:RS:{rScore}:TM:{sync}\n"
             client.sendall(msg.encode('utf-8'))
         except:
             print("Lost connection!")
@@ -166,14 +168,65 @@ def playGame(screenWidth:int, screenHeight:int, playerPaddle:str, client:socket.
         # Send your server update here at the end of the game loop to sync your game with your
         # opponent's game
 
-        # =========================================================================================
+        # Try to receive any incoming game state from the server
+        try:
+            client.setblocking(False)  # don’t block the game loop
+            try:
+                data = client.recv(4096).decode('utf-8')
+                if data:
+                    # You can print it or parse it
+                    print("[RECEIVED]", data.strip())
 
-def receive_messages(sock):
+                    # Optionally, parse and update the game state here:
+                    parsedL, parsedR = parse_game_state(data)
+                    print(f"[DEBUG] Parsed Left: {parsedL}, Parsed Right: {parsedR}")
+                    if parsedL:
+                        # Example: update opponent paddle, ball, and scores
+                        # Only do this if player is 'left' or 'right' to avoid overwriting own paddle
+                        if playerPaddle == "left":
+                            # update right side from server
+                            opponentPaddleObj.rect.y = parsedR['pos']
+                        else:
+                            # update left side from server
+                            opponentPaddleObj.rect.y = parsedL['pos']
+
+                        ball.rect.x = parsedL['bx']
+                        ball.rect.y = parsedL['by']
+                        lScore = parsedL['lscore']
+                        rScore = parsedL['rscore']
+            except BlockingIOError:
+                pass  # nothing to read, continue as normal
+            finally:
+                client.setblocking(True)  # restore blocking for next send
+        except Exception as e:
+            print("[ERROR receiving]", e)
+
+MSG_PATTERN = re.compile(
+    r'PN:(?P<name>\w+):PP:(?P<pos>\d+):BX:(?P<bx>\d+):BY:(?P<by>\d+):LS:(?P<lscore>\d+):RS:(?P<rscore>\d+):TM:(?P<time>\d+)')
+
+def parse_game_state(message: str):
+    match = MSG_PATTERN.match(message)
+    if match:
+        data1 = match.groupdict()
+        # Convert numeric values to int
+        for key in ['pos', 'bx', 'by', 'lscore', 'rscore', 'time']:
+            data1[key] = int(data1[key])
+        # Make a separate copy
+        data2 = data1.copy()
+        print(f"[DEBUG] Parsed data1: {data1}")
+        print(f"[DEBUG] Parsed data2: {data2}")
+        return data1, data2
+    else:
+        print(f"[WARNING] Could not parse message: {message}")
+        return {}, {}
+
+def receive_messages(sock, queue):
+    """Thread function to continuously receive messages and put them into a queue."""
     while True:
         try:
             message = sock.recv(1024).decode('utf-8')
             if message:
-                print(message)
+                queue.put(message)  # push message to queue
         except:
             print("Connection closed by server.")
             break
@@ -194,24 +247,19 @@ def joinServer(ip:str, port:str, errorLabel:tk.Label, app:tk.Tk) -> None:
     print("Connecting to server at", ip, "on port", port)
     try:
         client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        client.connect((ip, int(port)))  # ✅ Client connects only
+        client.connect((ip, int(port)))  # Client connects only
 
         
         # Receive message from server continuously
-        threading.Thread(target=receive_messages, args=(client,), daemon=True).start()
-        # data = client.recv(1024)
-        # print("Received from server:", data.decode())
+        msg_queue = queue.Queue()
 
-        # Send a message back
-        # client.sendall("Hello from client!".encode('utf-8'))
-        # response = client.recv(1024).decode()
-        # print("Server responded:", response)
+        # Start the receiver thread properly
+        threading.Thread(target=receive_messages, args=(client, msg_queue), daemon=True).start()
 
         # Update UI
         errorLabel.config(text=f"Connected successfully to {ip}:{port}")
         errorLabel.update()
 
-        # (Later) use client to play the game
         app.withdraw()
         playGame(640, 480, "left", client)
         app.quit()
