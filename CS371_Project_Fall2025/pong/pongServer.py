@@ -11,6 +11,7 @@
 # THEN USE THE COMMAND:
 # taskkill /PID <that_pid> /
 
+import re
 import socket
 import threading
 
@@ -92,16 +93,24 @@ def start_server():
     s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)  # allow quick restart
     s.bind((HOST, PORT))
     s.listen()
+    s.settimeout(1.0)#For periodically checking for KeyboardInterrupt
     print(f"[LISTENING] Server listening on {HOST}:{PORT}")
 
+    running = True
+
     try:
-        while True:
-            conn, addr = s.accept()
-            clients.append(conn)
-            thread = threading.Thread(target=handle_client, args=(conn, addr), daemon=True)
-            thread.start()
+        while running:
+            try:
+                conn, addr = s.accept()
+                clients.append(conn)
+                thread = threading.Thread(target=handle_client, args=(conn, addr), daemon=True)
+                thread.start()
+            except socket.timeout: 
+                #Checks for KeyboardInterrupt
+                continue
     except KeyboardInterrupt:
-        print("\n[SERVER STOPPING]")
+        print("[ClOSING SERVER]: KEYBOARD INTERRUPT EXCEPTION")
+        running = False
     finally:
         print("[CLOSING CLIENTS]")
         for c in clients:
