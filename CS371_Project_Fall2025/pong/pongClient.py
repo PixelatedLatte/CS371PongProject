@@ -175,7 +175,7 @@ def playGame(screenWidth:int, screenHeight:int, playerPaddle:str, client:socket.
                 data = client.recv(4096).decode('utf-8')
                 if data:
                     # You can print it or parse it
-                    print("[RECEIVED]", data.strip())
+                    print("[RECEIVED]", data)
 
                     # Optionally, parse and update the game state here:
                     parsedL, parsedR = parse_game_state(data)
@@ -185,15 +185,15 @@ def playGame(screenWidth:int, screenHeight:int, playerPaddle:str, client:socket.
                         # Only do this if player is 'left' or 'right' to avoid overwriting own paddle
                         if playerPaddle == "left":
                             # update right side from server
-                            opponentPaddleObj.rect.y = parsedR['pos']
+                            opponentPaddleObj.rect.y = int(parsedR['pos'])
                         else:
                             # update left side from server
-                            opponentPaddleObj.rect.y = parsedL['pos']
+                            opponentPaddleObj.rect.y = int(parsedL['pos'])
 
-                        ball.rect.x = parsedL['bx']
-                        ball.rect.y = parsedL['by']
-                        lScore = parsedL['lscore']
-                        rScore = parsedL['rscore']
+                        ball.rect.x = int(parsedL['bx'])
+                        ball.rect.y = int(parsedL['by'])
+                        lScore = int(parsedL['lscore'])
+                        rScore = int(parsedL['rscore'])
             except BlockingIOError:
                 pass  # nothing to read, continue as normal
             finally:
