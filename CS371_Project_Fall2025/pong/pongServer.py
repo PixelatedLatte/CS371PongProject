@@ -11,7 +11,6 @@
 # THEN USE THE COMMAND:
 # taskkill /PID <that_pid> /
 
-import re
 import socket
 import threading
 import re
