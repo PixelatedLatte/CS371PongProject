@@ -20,7 +20,7 @@ testvar = 5
 # This is the main game loop.  For the most part, you will not need to modify this.  The sections
 # where you should add to the code are marked.  Feel free to change any part of this project
 # to suit your needs.
-def playGame(screenWidth:int, screenHeight:int, playerPaddle:str, client:socket.socket) -> None:
+def playGame(screenWidth:int, screenHeight:int, playerPaddle:str, client:socket.socket, msg_queue:queue.Queue) -> None:
     
     # Pygame inits
     pygame.mixer.pre_init(44100, -16, 2, 2048)
@@ -169,37 +169,27 @@ def playGame(screenWidth:int, screenHeight:int, playerPaddle:str, client:socket.
         # opponent's game
 
         # Try to receive any incoming game state from the server
+# Check queue for received messages
         try:
-            client.setblocking(False)  # don’t block the game loop
-            try:
-                data = client.recv(4096).decode('utf-8')
-                if data:
-                    # You can print it or parse it
-                    print("[RECEIVED]", data)
+            while not msg_queue.empty():
+                incoming = msg_queue.get_nowait()
+                print("[QUEUE RECEIVED]:", incoming)
 
-                    # Optionally, parse and update the game state here:
-                    parsedL, parsedR = parse_game_state(data)
-                    print(f"[DEBUG] Parsed Left: {parsedL}, Parsed Right: {parsedR}")
-                    if parsedL:
-                        # Example: update opponent paddle, ball, and scores
-                        # Only do this if player is 'left' or 'right' to avoid overwriting own paddle
-                        if playerPaddle == "left":
-                            # update right side from server
-                            opponentPaddleObj.rect.y = int(parsedR['pos'])
-                        else:
-                            # update left side from server
-                            opponentPaddleObj.rect.y = int(parsedL['pos'])
+                parsedL, parsedR = parse_game_state(incoming)
 
-                        ball.rect.x = int(parsedL['bx'])
-                        ball.rect.y = int(parsedL['by'])
-                        lScore = int(parsedL['lscore'])
-                        rScore = int(parsedL['rscore'])
-            except BlockingIOError:
-                pass  # nothing to read, continue as normal
-            finally:
-                client.setblocking(True)  # restore blocking for next send
-        except Exception as e:
-            print("[ERROR receiving]", e)
+                if parsedL:
+                    if playerPaddle == "left":
+                        opponentPaddleObj.rect.y = int(parsedR['pos'])
+                    else:
+                        opponentPaddleObj.rect.y = int(parsedL['pos'])
+
+                    ball.rect.x = int(parsedL['bx'])
+                    ball.rect.y = int(parsedL['by'])
+                    lScore = int(parsedL['lscore'])
+                    rScore = int(parsedL['rscore'])
+        except queue.Empty:
+            pass
+        
 
 MSG_PATTERN = re.compile(
     r'PN:(?P<name>\w+):PP:(?P<pos>\d+):BX:(?P<bx>\d+):BY:(?P<by>\d+):LS:(?P<lscore>\d+):RS:(?P<rscore>\d+):TM:(?P<time>\d+)')
@@ -261,7 +251,7 @@ def joinServer(ip:str, port:str, errorLabel:tk.Label, app:tk.Tk) -> None:
         errorLabel.update()
 
         app.withdraw()
-        playGame(640, 480, "left", client)
+        playGame(640, 480, "left", client, msg_queue)
         app.quit()
 
     except Exception as e:
@@ -322,4 +312,4 @@ if __name__ == "__main__":
     # Uncomment the line below if you want to play the game without a server to see how it should work
     # the startScreen() function should call playGame with the arguments given to it by the server this is
     # here for demo purposes only
-    playGame(640, 480,"left",socket.socket(socket.AF_INET, socket.SOCK_STREAM))
+    #playGame(640, 480,"left",socket.socket(socket.AF_INET, socket.SOCK_STREAM))
