@@ -48,7 +48,12 @@ def parse_game_state(message: str):
 
 def handle_client(conn: socket.socket, addr):
     global usercount
+    if usercount == 0:
+        paddle_side = "left"
+    elif usercount == 1:
+        paddle_side = "right"
     usercount += 1
+
     print(f"[NEW CONNECTION] {addr} connected.")
     try:
         while True:
