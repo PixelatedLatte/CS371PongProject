@@ -238,7 +238,7 @@ def receive_messages(sock):
 
     while True:
         try:
-            chunk = sock.recv(4096).decode("utf-8")
+            chunk = sock.recv(4096)
 
             if not chunk:
                 print("[CLIENT] Server disconnected.")

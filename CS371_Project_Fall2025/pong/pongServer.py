@@ -19,7 +19,7 @@ from time import time
 REQUIRED_NUM_CLIENTS = 2
 clients = []
 userCount = 0
-running = False
+running = True
 gameStarted = False
 clientsLock = threading.Lock()
 twoClientsConnected = threading.Event()
@@ -86,7 +86,7 @@ def start_server():
     def accept_loop():
         global usercount
         global running
-        while running:
+        while True:
             try:
                 conn, addr = s.accept()
                 with clientsLock:
