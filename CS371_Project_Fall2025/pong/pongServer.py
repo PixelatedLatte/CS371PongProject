@@ -19,6 +19,7 @@ from time import time
 REQUIRED_NUM_CLIENTS = 2
 clients = []
 userCount = 0
+running = False
 gameStarted = False
 clientsLock = threading.Lock()
 twoClientsConnected = threading.Event()
@@ -80,13 +81,11 @@ def start_server():
     s.listen()
     s.settimeout(1.0)#For periodically checking for KeyboardInterrupt
     print(f"[LISTENING] Server listening on {HOST}:{PORT}")
-    global running
-    running = True
     
      # Allows for continous accepting of clients without blocking any other operations or freezing the server
     def accept_loop():
         global usercount
-        nonlocal running
+        global running
         while running:
             try:
                 conn, addr = s.accept()
