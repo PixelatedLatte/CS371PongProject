@@ -268,6 +268,7 @@ def joinServer(ip:str, port:str, errorLabel:tk.Label, app:tk.Tk) -> None:
         print("Waiting for other player to connect...")
         startMsg = msg_queue.get().strip()
         if "START" in startMsg:
+            paddleSide = startMsg.split(":")[1]
             print("Starting game, Opponent Connected!")
         else:
             print(f"Unexpected message from server: {startMsg}")
@@ -275,7 +276,7 @@ def joinServer(ip:str, port:str, errorLabel:tk.Label, app:tk.Tk) -> None:
             return
 
         app.withdraw()
-        playGame(640, 480, "left", client, msg_queue)
+        playGame(640, 480, paddleSide, client, msg_queue)
         app.quit()
     except Exception as e:
         errorLabel.config(text=f"Connection failed: {e}")

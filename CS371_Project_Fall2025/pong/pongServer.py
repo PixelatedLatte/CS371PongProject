@@ -11,13 +11,14 @@
 # THEN USE THE COMMAND:
 # taskkill /PID <that_pid> /
 
-from email import message
 import socket
 import threading
 import re
+from time import time
 
 REQUIRED_NUM_CLIENTS = 2
 clients = []
+userCount = 0
 gameStarted = False
 clientsLock = threading.Lock()
 twoClientsConnected = threading.Event()
@@ -53,23 +54,6 @@ def parse_game_state(message: str):
 
 
 def handle_client(conn: socket.socket, addr):
-    global usercount
-    
-
-    print(f"[NEW CONNECTION] {addr} connected.")
-    with clientsLock:
-        if usercount == 0:
-            paddle_side = "left"
-        elif usercount == 1:
-            paddle_side = "right"
-        else:
-            paddle_side = "spectator"
-        usercount += 1
-        if len(clients) >= REQUIRED_NUM_CLIENTS:#Sets event in which two clients have successfully connected
-            print("[Server] Two clients have connected, Starting Game!")
-            twoClientsConnected.set()
-    
-    print(f"[User Assigned] {addr} assigned as {paddle_side}.")
     try:
         while True:
             data = conn.recv(4096)
@@ -92,9 +76,10 @@ def handle_client(conn: socket.socket, addr):
         conn.close()
         print(f"[DISCONNECTED] from: {addr}")
         with clientsLock:
-            if conn in clients:
-                clients.remove(conn)
-            usercount -= 1
+            for i, (c, _) in enumerate(clients):
+                if c == conn:
+                    clients.pop(i)
+                    break
 
 def start_server():
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -103,13 +88,26 @@ def start_server():
     s.settimeout(1.0)#For periodically checking for KeyboardInterrupt
     print(f"[LISTENING] Server listening on {HOST}:{PORT}")
     running = True
-
-    def accept_loop(): # Allows for continous accepting of clients without blocking any other operations or freezing the server
+    
+     # Allows for continous accepting of clients without blocking any other operations or freezing the server
+    def accept_loop():
+        global usercount
         while True:
-            try:
+            try:  
                 conn, addr = s.accept()
                 with clientsLock:
-                    clients.append(conn)
+                    if usercount == 0:
+                        paddle_side = "left"
+                    elif usercount == 1:
+                        paddle_side = "right"
+                    else:
+                        paddle_side = "spectator"
+
+                    clients.append((conn, paddle_side))
+                    usercount += 1
+                    print(f"[NEW CONNECTION] {addr} assigned to {paddle_side} paddle. Total clients: {usercount}")
+                    if usercount >= REQUIRED_NUM_CLIENTS:
+                        twoClientsConnected.set()
                 thread = threading.Thread(target=handle_client, args=(conn, addr), daemon=True)
                 thread.start()
             except socket.timeout: 
@@ -118,11 +116,15 @@ def start_server():
     
     acceptThread = threading.Thread(target=accept_loop, daemon=True)
     acceptThread.start()
-
     twoClientsConnected.wait()
     print("[SERVER] Two clients connected, starting game.")
-    message = b"START\n"#DON'T REMOVE THE FUCKING NEWLINE CHARACTER, IT'S WHAT ALLOWS THE START MESSAGE TO NOT FUCK UP!!!
-    broadcast(message)
+    with clientsLock:
+        for conn, paddle_side in clients:
+                if paddle_side != "spectator":
+                    try:
+                        conn.sendall(f"START:{paddle_side}\n".encode('utf-8'))
+                    except Exception as e:
+                        print(f"[ERROR] Failed to send START to {conn}: {e}")
     
     try:
         # Keeps the main thread alive for catching Keyboard Interrupt
@@ -133,7 +135,7 @@ def start_server():
     finally:
         print("[CLOSING CLIENTS]")
         with clientsLock:
-            for client in clients:#Attempts to close all clients in the client list, if they are still there
+            for client, _ in clients:#Attempts to close all clients in the client list, if they are still there
                 try: client.close()
                 except: pass
         s.close()
