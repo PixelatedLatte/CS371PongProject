@@ -16,7 +16,6 @@ import socket
 import time
 
 from assets.code.helperCode import *
-testvar = 5
 
 # This is the main game loop.  For the most part, you will not need to modify this.  The sections
 # where you should add to the code are marked.  Feel free to change any part of this project
@@ -62,7 +61,6 @@ def playGame(screenWidth:int, screenHeight:int, playerPaddle:str, client:socket.
 
     lScore = 0
     rScore = 0
-
     sync = 0
 
     # Determine authority: host simulates the ball
@@ -86,40 +84,34 @@ def playGame(screenWidth:int, screenHeight:int, playerPaddle:str, client:socket.
         # PROCESS NETWORK UPDATES *BEFORE* DRAWING ANYTHING
         # This prevents old paddle/ball pixels from being left on the screen
         # =========================================================================================
-        try:
             # drain the queue and apply the most recent state(s)
-            while not msg_queue.empty():
-                incoming = msg_queue.get_nowait()
-                print("[QUEUE RECEIVED]:", incoming)
-                parsedL, parsedR = parse_game_state(incoming)
-                if parsedL:
-                    # update opponent paddle based on what server told us
-                    if playerPaddle == "left":
-                        opponentPaddleObj.rect.y = int(parsedR['pos'])
-                    else:
-                        opponentPaddleObj.rect.y = int(parsedL['pos'])
+        while not msg_queue.empty():
+            incoming = msg_queue.get_nowait()
+            print("[QUEUE RECEIVED]:", incoming)
+            parsedL, parsedR = parse_game_state(incoming)
+            if parsedL:
+                # update opponent paddle based on what server told us
+                if playerPaddle == "left":  
+                    opponentPaddleObj.rect.y = int(parsedR['pos'])
+                else:
+                    opponentPaddleObj.rect.y = int(parsedL['pos'])
 
-                    # Only non-host clients should adopt the authoritative ball position
-                    if not isHost:
-                        # apply authoritative ball + scores from network
-                        ball.rect.x = int(parsedL['bx'])
-                        ball.rect.y = int(parsedL['by'])
-                        lScore = int(parsedL['lscore'])
-                        rScore = int(parsedL['rscore'])
-        except queue.Empty:
-            pass
+                # Only non-host clients should adopt the authoritative ball position
+                if not isHost:
+                    # apply authoritative ball + scores from network
+                    ball.rect.x = int(parsedL['bx'])
+                    ball.rect.y = int(parsedL['by'])
+                    lScore = int(parsedL['lscore'])
+                    rScore = int(parsedL['rscore'])
 
         # Now clear the screen (must happen AFTER network updates)
         screen.fill((0,0,0))
 
         # Update the player paddle and opponent paddle's location on the screen
-        for paddle in [playerPaddleObj, opponentPaddleObj]:
-            if paddle.moving == "down":
-                if paddle.rect.bottomleft[1] < screenHeight-10:
-                    paddle.rect.y += paddle.speed
-            elif paddle.moving == "up":
-                if paddle.rect.topleft[1] > 10:
-                    paddle.rect.y -= paddle.speed
+        if playerPaddleObj.moving == "down" and playerPaddleObj.rect.bottom < screenHeight - 10:
+            playerPaddleObj.rect.y += playerPaddleObj.speed
+        elif playerPaddleObj.moving == "up" and playerPaddleObj.rect.top > 10:
+            playerPaddleObj.rect.y -= playerPaddleObj.speed
 
         # If the game is over, display the win message
         if lScore > 4 or rScore > 4:
@@ -185,6 +177,9 @@ def playGame(screenWidth:int, screenHeight:int, playerPaddle:str, client:socket.
             client.sendall(msg.encode('utf-8'))
         except:
             print("Lost connection!")
+            pygame.quit()
+            client.close()
+            return
         # =========================================================================================
 
         pygame.display.update()
@@ -250,10 +245,8 @@ def joinServer(ip:str, port:str, errorLabel:tk.Label, app:tk.Tk) -> None:
     print("Connecting to server at", ip, "on port", port)
     try:
         client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        print("TestVar1")
         client.connect((ip, int(port)))  # Client connects only
 
-        print("TestVar2")
         # Receive message from server continuously
         global msg_queue
         msg_queue = queue.Queue()
@@ -267,7 +260,7 @@ def joinServer(ip:str, port:str, errorLabel:tk.Label, app:tk.Tk) -> None:
 
         print("Waiting for other player to connect...")
         startMsg = msg_queue.get().strip()
-        if "START" in startMsg:
+        if "START" in startMsg:# Finds that START has been sent over by the server and then extracts the paddle side given their player number
             paddleSide = startMsg.split(":")[1]
             print("Starting game, Opponent Connected!")
         else:
@@ -276,7 +269,11 @@ def joinServer(ip:str, port:str, errorLabel:tk.Label, app:tk.Tk) -> None:
             return
 
         app.withdraw()
-        playGame(640, 480, paddleSide, client, msg_queue)
+        if paddleSide == "left" or paddleSide == "right":
+            playGame(640, 480, paddleSide, client, msg_queue)
+        else:#There was a problem with the name of paddleSide sent and extracted
+            print(f"Unexpect Paddle side, disconnecting.")
+            return
         app.quit()
     except Exception as e:
         errorLabel.config(text=f"Connection failed: {e}")
@@ -323,7 +320,6 @@ def startScreen():
     errorLabel = tk.Label(text="")
     errorLabel.grid(column=0, row=4, columnspan=2)
 
-    print("testvar in pongClient:", testvar)
     joinButton = tk.Button(text="Join", command=lambda: joinServer(ipEntry.get(), portEntry.get(), errorLabel, app))
     joinButton.grid(column=0, row=3, columnspan=2)
 

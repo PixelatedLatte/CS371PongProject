@@ -68,8 +68,6 @@ def handle_client(conn: socket.socket, addr):
                     f"PN:{message1['name']}:PP:{message1['pos']}:BX:{message1['bx']}:BY:{message1['by']}:" 
                     f"LS:{message1['lscore']}:RS:{message1['rscore']}:TM:{message1['time']}\n"
                 ).encode('utf-8')
-                broadcast(transmit)
-
     except ConnectionResetError:
         pass
     finally:
