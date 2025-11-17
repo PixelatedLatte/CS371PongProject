@@ -86,6 +86,8 @@ def playGame(screenWidth:int, screenHeight:int, playerPaddle:str, client:socket.
         # This prevents old paddle/ball pixels from being left on the screen
         # =========================================================================================
             # drain the queue and apply the most recent state(s)
+        print("[CHECKING QUEUE]")
+        print("[QUEUE SIZE]:", msg_queue.qsize())
         while not msg_queue.empty():
             incoming = msg_queue.get_nowait()
             print("[QUEUE RECEIVED]:", incoming)
@@ -199,19 +201,37 @@ MSG_PATTERN = re.compile(
 def parse_game_state(message: str):
     match = MSG_PATTERN.match(message)
     if match:
-        data1 = match.groupdict()
+        data = match.groupdict()
         # Convert numeric values to int
         for key in ['pos', 'bx', 'by', 'lscore', 'rscore', 'time']:
-            data1[key] = int(data1[key])
-        # Make a separate copy
+            data[key] = int(data[key])
         
-        data2 = data1.copy()
-        print(f"[DEBUG] Parsed data1: {data1}")
-        print(f"[DEBUG] Parsed data2: {data2}")
-        return data1, data2
+        print(f"[DEBUG] Parsed data: {data}")
+        
+        # Create separate objects for left and right paddle data
+        # The 'name' field tells us which paddle this data is about
+        leftData = {
+            'pos': data['pos'] if data['name'] == 'left' else 0,
+            'bx': data['bx'],
+            'by': data['by'],
+            'lscore': data['lscore'],
+            'rscore': data['rscore'],
+            'time': data['time']
+        }
+        
+        rightData = {
+            'pos': data['pos'] if data['name'] == 'right' else 0,
+            'bx': data['bx'],
+            'by': data['by'],
+            'lscore': data['lscore'],
+            'rscore': data['rscore'],
+            'time': data['time']
+        }
+        
+        return leftData, rightData
     else:
         print(f"[WARNING] Could not parse message: {message}")
-        return {}, {}
+        return None, None
 
 def receive_messages(sock):
     buffer = ""
@@ -223,16 +243,16 @@ def receive_messages(sock):
             if not chunk:
                 print("[CLIENT] Server disconnected.")
                 break
-
-            buffer += chunk
-
-            # Process all complete messages
-            while "\n" in buffer:
-                msg, buffer = buffer.split("\n", 1)
-
-                if msg.strip():  # non-empty
-                    print("[CLIENT RECEIVED MSG]:", msg)
-                    msg_queue.put(msg)
+            decoded = chunk.decode('utf-8')
+            print(f"[RECEIVED CHUNK]: {decoded}")
+            buffer += decoded  # Add to buffer
+            
+            # Split by newline and process complete messages
+            while '\n' in buffer:
+                message, buffer = buffer.split('\n', 1)  # Get first complete message
+                if message.strip():  # Only process non-empty messages
+                    msg_queue.put(message.strip())
+                    print(f"[QUEUED MESSAGE]: {message.strip()}")
         except Exception as e:
             print("Receive error:", e)
             break
@@ -279,11 +299,13 @@ def joinServer(ip:str, port:str, errorLabel:tk.Label, app:tk.Tk) -> None:
             return
 
         app.withdraw()
+        print(f"Starting game as {paddleSide} paddle.")
         if paddleSide == "left" or paddleSide == "right":
             playGame(640, 480, paddleSide, client, msg_queue)
         else:#There was a problem with the name of paddleSide sent and extracted
             print(f"Unexpect Paddle side, disconnecting.")
             return
+        print("Game Ended, closing client.")
         app.quit()
     except Exception as e:
         errorLabel.config(text=f"Connection failed: {e}")

@@ -23,7 +23,6 @@ gameStarted = False
 clientsLock = threading.Lock()
 twoClientsConnected = threading.Event()
 
-
 def broadcast(message):
     with clientsLock:
         for c, _ in clients:
@@ -56,29 +55,24 @@ def parse_game_state(message: str):
 
 def handle_client(conn: socket.socket, addr):
     try:
-        while True:
+        while running:
             data = conn.recv(4096)
             if not data:
                 break
-            data = data.decode('utf-8')
-            message1,message2 = parse_game_state(data)
-            print(f"[{addr}] Parsed message: {message1}")
-            # Optional: echo back or broadcast
-            transmit = (
-                f"PN:{message1['name']}:PP:{message1['pos']}:BX:{message1['bx']}:BY:{message1['by']}:" 
-                f"LS:{message1['lscore']}:RS:{message1['rscore']}:TM:{message1['time']}\n"
-            ).encode('utf-8')
-            broadcast(transmit)
+            data = data.decode('utf-8').strip()
+            if not data:  # Skip empty messages
+                continue
+            message1, message2 = parse_game_state(data)
+            if message1:
+                print(f"[{addr}] Parsed message: {message1}")
+                # Broadcast to all clients
+                transmit = (
+                    f"PN:{message1['name']}:PP:{message1['pos']}:BX:{message1['bx']}:BY:{message1['by']}:" 
+                    f"LS:{message1['lscore']}:RS:{message1['rscore']}:TM:{message1['time']}\n"
+                ).encode('utf-8')
+                broadcast(transmit)
     except ConnectionResetError:
         pass
-    finally:
-        conn.close()
-        print(f"[DISCONNECTED] from: {addr}")
-        with clientsLock:
-            for i, (c, _) in enumerate(clients):
-                if c == conn:
-                    clients.pop(i)
-                    break
 
 def start_server():
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -86,6 +80,7 @@ def start_server():
     s.listen()
     s.settimeout(1.0)#For periodically checking for KeyboardInterrupt
     print(f"[LISTENING] Server listening on {HOST}:{PORT}")
+    global running
     running = True
     
      # Allows for continous accepting of clients without blocking any other operations or freezing the server
