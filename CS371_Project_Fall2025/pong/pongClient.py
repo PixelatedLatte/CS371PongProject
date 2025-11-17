@@ -218,19 +218,18 @@ def parse_game_state(message: str):
         return {}, {}
 
 def receive_messages(sock):
-    firstchunk = sock.recv(1024).decode('utf-8')
-    print(f"[RECEIVED FIRST CHUNK]: {firstchunk}")
     while True:
-        print("[RECEIVING MESSAGES]")
         try:
-            chunk = sock.recv(1024).decode('utf-8')
-            print(f"[RECEIVED CHUNK]: {chunk}")
+            chunk = sock.recv(1024)
             if not chunk:
                 break
-            # Split complete messages
-            msg_queue.put(chunk)
-        except:
-            print("Connection closed by server.")
+
+            decoded = chunk.decode('utf-8')
+            print(f"[RECEIVED CHUNK]: {decoded}")
+            msg_queue.put(decoded)
+
+        except Exception as e:
+            print(f"Receive error: {e}")
             break
 
 # This is where you will connect to the server to get the info required to call the game loop.  Mainly
@@ -265,6 +264,15 @@ def joinServer(ip:str, port:str, errorLabel:tk.Label, app:tk.Tk) -> None:
 
         errorLabel.config(text=f"Connected successfully to {ip}:{port}")
         errorLabel.update()
+
+        print("Waiting for other player to connect...")
+        startMsg = msg_queue.get().strip()
+        if "START" in startMsg:
+            print("Starting game, Opponent Connected!")
+        else:
+            print(f"Unexpected message from server: {startMsg}")
+            print(f"Closing game, something went wrong.")
+            return
 
         app.withdraw()
         playGame(640, 480, "left", client, msg_queue)

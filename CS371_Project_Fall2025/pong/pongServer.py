@@ -11,11 +11,17 @@
 # THEN USE THE COMMAND:
 # taskkill /PID <that_pid> /
 
+from email import message
 import socket
 import threading
 import re
 
+REQUIRED_NUM_CLIENTS = 2
 clients = []
+gameStarted = False
+clientsLock = threading.Lock()
+twoClientsConnected = threading.Event()
+
 
 def broadcast(message):
     for client in clients:
@@ -48,13 +54,22 @@ def parse_game_state(message: str):
 
 def handle_client(conn: socket.socket, addr):
     global usercount
-    if usercount == 0:
-        paddle_side = "left"
-    elif usercount == 1:
-        paddle_side = "right"
-    usercount += 1
+    
 
     print(f"[NEW CONNECTION] {addr} connected.")
+    with clientsLock:
+        if usercount == 0:
+            paddle_side = "left"
+        elif usercount == 1:
+            paddle_side = "right"
+        else:
+            paddle_side = "spectator"
+        usercount += 1
+        if len(clients) >= REQUIRED_NUM_CLIENTS:#Sets event in which two clients have successfully connected
+            print("[Server] Two clients have connected, Starting Game!")
+            twoClientsConnected.set()
+    
+    print(f"[User Assigned] {addr} assigned as {paddle_side}.")
     try:
         while True:
             data = conn.recv(4096)
@@ -76,9 +91,10 @@ def handle_client(conn: socket.socket, addr):
     finally:
         conn.close()
         print(f"[DISCONNECTED] from: {addr}")
-        if conn in clients:
-            clients.remove(conn)
-        usercount -= 1
+        with clientsLock:
+            if conn in clients:
+                clients.remove(conn)
+            usercount -= 1
 
 def start_server():
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -88,26 +104,38 @@ def start_server():
     print(f"[LISTENING] Server listening on {HOST}:{PORT}")
     running = True
 
-    try:
-        while running:
+    def accept_loop(): # Allows for continous accepting of clients without blocking any other operations or freezing the server
+        while True:
             try:
                 conn, addr = s.accept()
-                clients.append(conn)
+                with clientsLock:
+                    clients.append(conn)
                 thread = threading.Thread(target=handle_client, args=(conn, addr), daemon=True)
                 thread.start()
             except socket.timeout: 
                 #Checks for KeyboardInterrupt
                 continue
+    
+    acceptThread = threading.Thread(target=accept_loop, daemon=True)
+    acceptThread.start()
+
+    twoClientsConnected.wait()
+    print("[SERVER] Two clients connected, starting game.")
+    message = b"START\n"#DON'T REMOVE THE FUCKING NEWLINE CHARACTER, IT'S WHAT ALLOWS THE START MESSAGE TO NOT FUCK UP!!!
+    broadcast(message)
+    
+    try:
+        # Keeps the main thread alive for catching Keyboard Interrupt
+        acceptThread.join()
     except KeyboardInterrupt:
         print("[ClOSING SERVER]: KEYBOARD INTERRUPT EXCEPTION")
         running = False
     finally:
         print("[CLOSING CLIENTS]")
-        for c in clients:
-            try:
-                c.close()
-            except:
-                pass
+        with clientsLock:
+            for client in clients:#Attempts to close all clients in the client list, if they are still there
+                try: client.close()
+                except: pass
         s.close()
         print("[SERVER CLOSED]")
 
