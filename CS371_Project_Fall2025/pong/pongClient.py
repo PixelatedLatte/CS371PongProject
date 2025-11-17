@@ -22,6 +22,7 @@ from assets.code.helperCode import *
 # to suit your needs.
 def playGame(screenWidth:int, screenHeight:int, playerPaddle:str, client:socket.socket, msg_queue:queue.Queue) -> None:
     
+    print("The game started!")
     # Pygame inits
     pygame.mixer.pre_init(44100, -16, 2, 2048)
     pygame.init()
@@ -89,20 +90,20 @@ def playGame(screenWidth:int, screenHeight:int, playerPaddle:str, client:socket.
             incoming = msg_queue.get_nowait()
             print("[QUEUE RECEIVED]:", incoming)
             parsedL, parsedR = parse_game_state(incoming)
-            if parsedL:
-                # update opponent paddle based on what server told us
-                if playerPaddle == "left":  
-                    opponentPaddleObj.rect.y = int(parsedR['pos'])
-                else:
-                    opponentPaddleObj.rect.y = int(parsedL['pos'])
+            #if parsedL:
+            # update opponent paddle based on what server told us
+            if playerPaddle == "left":
+                opponentPaddleObj.rect.y = int(parsedR['pos'])
+            else:
+                opponentPaddleObj.rect.y = int(parsedL['by'])
 
-                # Only non-host clients should adopt the authoritative ball position
-                if not isHost:
-                    # apply authoritative ball + scores from network
-                    ball.rect.x = int(parsedL['bx'])
-                    ball.rect.y = int(parsedL['by'])
-                    lScore = int(parsedL['lscore'])
-                    rScore = int(parsedL['rscore'])
+            # Only non-host clients should adopt the authoritative ball position
+            if not isHost:
+                # apply authoritative ball + scores from network
+                ball.rect.x = int(parsedL['bx'])
+                ball.rect.y = int(parsedL['by'])
+                lScore = int(parsedL['lscore'])
+                rScore = int(parsedL['rscore'])
 
         # Now clear the screen (must happen AFTER network updates)
         screen.fill((0,0,0))
@@ -213,18 +214,27 @@ def parse_game_state(message: str):
         return {}, {}
 
 def receive_messages(sock):
+    buffer = ""
+
     while True:
         try:
-            chunk = sock.recv(1024)
+            chunk = sock.recv(4096).decode("utf-8")
+
             if not chunk:
+                print("[CLIENT] Server disconnected.")
                 break
 
-            decoded = chunk.decode('utf-8')
-            print(f"[RECEIVED CHUNK]: {decoded}")
-            msg_queue.put(decoded)
+            buffer += chunk
 
+            # Process all complete messages
+            while "\n" in buffer:
+                msg, buffer = buffer.split("\n", 1)
+
+                if msg.strip():  # non-empty
+                    print("[CLIENT RECEIVED MSG]:", msg)
+                    msg_queue.put(msg)
         except Exception as e:
-            print(f"Receive error: {e}")
+            print("Receive error:", e)
             break
 
 # This is where you will connect to the server to get the info required to call the game loop.  Mainly

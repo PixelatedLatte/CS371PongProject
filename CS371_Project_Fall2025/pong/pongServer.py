@@ -25,11 +25,12 @@ twoClientsConnected = threading.Event()
 
 
 def broadcast(message):
-    for client in clients:
-        try:#Successfully sent message
-            client.sendall(message)
-        except:#Send failed, remove client with error
-            clients.remove(client)
+    with clientsLock:
+        for c, _ in clients:
+            try:
+                c.sendall(message)
+            except:
+                clients.remove((c,_))
 
 
 # Regex to parse each game message
@@ -61,13 +62,13 @@ def handle_client(conn: socket.socket, addr):
                 break
             data = data.decode('utf-8')
             message1,message2 = parse_game_state(data)
-            if message1:
-                print(f"[{addr}] Parsed message: {message1}")
-                # Optional: echo back or broadcast
-                transmit = (
-                    f"PN:{message1['name']}:PP:{message1['pos']}:BX:{message1['bx']}:BY:{message1['by']}:" 
-                    f"LS:{message1['lscore']}:RS:{message1['rscore']}:TM:{message1['time']}\n"
-                ).encode('utf-8')
+            print(f"[{addr}] Parsed message: {message1}")
+            # Optional: echo back or broadcast
+            transmit = (
+                f"PN:{message1['name']}:PP:{message1['pos']}:BX:{message1['bx']}:BY:{message1['by']}:" 
+                f"LS:{message1['lscore']}:RS:{message1['rscore']}:TM:{message1['time']}\n"
+            ).encode('utf-8')
+            broadcast(transmit)
     except ConnectionResetError:
         pass
     finally:
@@ -90,8 +91,9 @@ def start_server():
      # Allows for continous accepting of clients without blocking any other operations or freezing the server
     def accept_loop():
         global usercount
-        while True:
-            try:  
+        nonlocal running
+        while running:
+            try:
                 conn, addr = s.accept()
                 with clientsLock:
                     if usercount == 0:
@@ -114,19 +116,19 @@ def start_server():
     
     acceptThread = threading.Thread(target=accept_loop, daemon=True)
     acceptThread.start()
+
+    
     twoClientsConnected.wait()
     print("[SERVER] Two clients connected, starting game.")
     with clientsLock:
         for conn, paddle_side in clients:
-                if paddle_side != "spectator":
-                    try:
-                        conn.sendall(f"START:{paddle_side}\n".encode('utf-8'))
-                    except Exception as e:
-                        print(f"[ERROR] Failed to send START to {conn}: {e}")
-    
+            if paddle_side != "spectator":
+                try:
+                    conn.sendall(f"START:{paddle_side}\n".encode('utf-8'))
+                except Exception as e:
+                    print(f"[ERROR] Failed to send START to {conn}: {e}")
     try:
-        # Keeps the main thread alive for catching Keyboard Interrupt
-        acceptThread.join()
+        acceptThread.join()   # Keeps the main thread alive for catching Keyboard Interrupt
     except KeyboardInterrupt:
         print("[ClOSING SERVER]: KEYBOARD INTERRUPT EXCEPTION")
         running = False
