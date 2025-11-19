@@ -45,25 +45,23 @@ def parse_game_state(message: str):
         for key in ['pos', 'bx', 'by', 'lscore', 'rscore', 'time']:
             data1[key] = int(data1[key])
         # Make a separate copy
-        data2 = data1.copy()
         print(f"[DEBUG] Parsed data1: {data1}")
-        print(f"[DEBUG] Parsed data2: {data2}")
-        return data1, data2
+        return data1
     else:
         print(f"[WARNING] Could not parse message: {message}")
-        return {}, {}
+        return {}
 
 
 def handle_client(conn: socket.socket, addr):
     try:
-        while running:
+        while True:
             data = conn.recv(4096)
             if not data:
                 break
             data = data.decode('utf-8').strip()
             if not data:  # Skip empty messages
                 continue
-            message1, message2 = parse_game_state(data)
+            message1 = parse_game_state(data)
             if message1:
                 print(f"[{addr}] Parsed message: {message1}")
                 # Broadcast to all clients
@@ -86,7 +84,7 @@ def start_server():
     def accept_loop():
         global usercount
         global running
-        while running:
+        while True:
             try:
                 conn, addr = s.accept()
                 with clientsLock:
