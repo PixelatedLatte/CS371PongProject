@@ -168,6 +168,9 @@ def playGame(screenWidth:int, screenHeight:int, playerPaddle:str, client:socket.
         for i in centerLine:
             pygame.draw.rect(screen, WHITE, i)
         # Drawing the player's new location
+        print("[DRAWING PADDLES]")
+        print("[OPPONENT PADDLE Y]:", playerPaddleObj.rect.y)
+
         for paddle in [playerPaddleObj, opponentPaddleObj]:
             pygame.draw.rect(screen, WHITE, paddle.rect)
             
