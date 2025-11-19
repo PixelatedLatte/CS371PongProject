@@ -121,32 +121,31 @@ def start_server():
     acceptThread = threading.Thread(target=accept_loop, daemon=True)
     acceptThread.start()
 
-    while True:
-        twoClientsConnected.wait()
-        print("[SERVER] Two clients connected, starting game.")
+
+    twoClientsConnected.wait()
+    print("[SERVER] Two clients connected, starting game.")
+    with clientsLock:
+        for conn, paddle_side in clients:
+            if paddle_side != "spectator":
+                try:
+                    conn.sendall(f"START:{paddle_side}\n".encode('utf-8'))
+                except Exception as e:
+                    print(f"[ERROR] Failed to send START to {conn}: {e}")
+    try:
+        acceptThread.join() # Keeps the main thread alive for catching Keyboard Interrupt
+        while running:
+            time.pause(0.5)
+    except KeyboardInterrupt:
+        print("[ClOSING SERVER]: KEYBOARD INTERRUPT EXCEPTION")
+        running = False
+    finally:
+        print("[CLOSING CLIENTS]")
         with clientsLock:
-            for conn, paddle_side in clients:
-                if paddle_side != "spectator":
-                    try:
-                        conn.sendall(f"START:{paddle_side}\n".encode('utf-8'))
-                    except Exception as e:
-                        print(f"[ERROR] Failed to send START to {conn}: {e}")
-        try:
-            acceptThread.join() # Keeps the main thread alive for catching Keyboard Interrupt
-            while running:
-                time.pause(0.5)
-        except KeyboardInterrupt:
-            print("[ClOSING SERVER]: KEYBOARD INTERRUPT EXCEPTION")
-            running = False
-        finally:
-            print("[CLOSING CLIENTS]")
-            with clientsLock:
-                for client, _ in clients:#Attempts to close all clients in the client list, if they are still there
-                    try: client.close()
-                    except: pass
-            s.close()
-            print("[SERVER CLOSED]")
-            break
+            for client, _ in clients:#Attempts to close all clients in the client list, if they are still there
+                try: client.close()
+                except: pass
+        s.close()
+        print("[SERVER CLOSED]")
 
 if __name__ == "__main__":
     global usercount
