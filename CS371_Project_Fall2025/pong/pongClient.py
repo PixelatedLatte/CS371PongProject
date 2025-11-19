@@ -97,7 +97,7 @@ def playGame(screenWidth:int, screenHeight:int, playerPaddle:str, client:socket.
             if playerPaddle == "left":
                 opponentPaddleObj.rect.y = int(parsedR['pos'])
             else:
-                opponentPaddleObj.rect.y = int(parsedL['by'])
+                opponentPaddleObj.rect.y = int(parsedL['pos'])
 
             # Only non-host clients should adopt the authoritative ball position
             if not isHost:

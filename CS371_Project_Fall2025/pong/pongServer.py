@@ -55,11 +55,10 @@ def parse_game_state(message: str):
 
 
 def handle_client(conn: socket.socket, addr):
+    global usercount
     try:
         while running:
             data = conn.recv(4096)
-            if not data:
-                break
             data = data.decode('utf-8').strip()
             if not data:  # Skip empty messages
                 continue
@@ -74,8 +73,16 @@ def handle_client(conn: socket.socket, addr):
                 broadcast(transmit)
     except ConnectionResetError:
         pass
+    finally:
+        with clientsLock:
+            clients[:] = [(c, side) for c, side in clients if c != conn]
+        print(f"[CLIENT DISCONNECT] The client: {conn} has disconnected from the server!")
+        conn.close()
+        usercount -= 1
 
 def start_server():
+    global clients
+    global usercount
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     s.bind((HOST, PORT))
     s.listen()
@@ -86,6 +93,7 @@ def start_server():
     def accept_loop():
         global usercount
         global running
+        global clients
         while True:
             try:
                 conn, addr = s.accept()
