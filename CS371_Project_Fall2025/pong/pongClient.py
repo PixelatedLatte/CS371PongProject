@@ -65,6 +65,7 @@ def playGame(screenWidth:int, screenHeight:int, playerPaddle:str, client:socket.
     sync = 0
 
     # Determine authority: host simulates the ball
+    global isHost
     isHost = (playerPaddle == "left")
 
     while True:
@@ -91,21 +92,22 @@ def playGame(screenWidth:int, screenHeight:int, playerPaddle:str, client:socket.
         while not msg_queue.empty():
             incoming = msg_queue.get_nowait()
             print("[QUEUE RECEIVED]:", incoming)
-            parsedL, parsedR = parse_game_state(incoming)
+            parsed = parse_game_state(incoming)
             #if parsedL:
             # update opponent paddle based on what server told us
-            if playerPaddle == "left":
-                opponentPaddleObj.rect.y = int(parsedR['pos'])
-            else:
-                opponentPaddleObj.rect.y = int(parsedL['pos'])
+            if parsed is None:
+                print("[WARNING] Received unparsable message, ignoring.")
+                continue
+
+            opponentPaddleObj.rect.y = int(parsed['pos'])
 
             # Only non-host clients should adopt the authoritative ball position
-            if not isHost:
+            if not isHost and parsed is not None:
                 # apply authoritative ball + scores from network
-                ball.rect.x = int(parsedL['bx'])
-                ball.rect.y = int(parsedL['by'])
-                lScore = int(parsedL['lscore'])
-                rScore = int(parsedL['rscore'])
+                ball.rect.x = int(parsed.get('bx', ball.rect.x))
+                ball.rect.y = int(parsed.get('by', ball.rect.y))
+                lScore = int(parsed.get('lscore', lScore))
+                rScore = int(parsed.get('rscore', rScore))
 
         # Now clear the screen (must happen AFTER network updates)
         screen.fill((0,0,0))
@@ -121,13 +123,13 @@ def playGame(screenWidth:int, screenHeight:int, playerPaddle:str, client:socket.
             winText = "Player 1 Wins! " if lScore > 4 else "Player 2 Wins! "
             textSurface = winFont.render(winText, False, WHITE, (0,0,0))
             textRect = textSurface.get_rect()
-            textRect.center = ((screenWidth/2), screenHeight/2)
+            textRect.center = (int(screenWidth/2), int(screenHeight/2))
             winMessage = screen.blit(textSurface, textRect)
             pygame.display.update()
             time.sleep(3)
             pygame.quit()
             client.close()
-            return 0
+            return
         else:
 
             # ==== Ball Logic =====================================================================
@@ -159,7 +161,7 @@ def playGame(screenWidth:int, screenHeight:int, playerPaddle:str, client:socket.
                     bounceSound.play()
                     ball.hitWall()
             # Clients do NOT call ball.updatePos(); they just draw ball at last received coordinates
-            pygame.draw.rect(screen, WHITE, ball)
+            pygame.draw.rect(screen, WHITE, ball.rect)
             # ==== End Ball Logic =================================================================
 
         # Drawing the dotted line in the center
@@ -167,8 +169,8 @@ def playGame(screenWidth:int, screenHeight:int, playerPaddle:str, client:socket.
             pygame.draw.rect(screen, WHITE, i)
         # Drawing the player's new location
         for paddle in [playerPaddleObj, opponentPaddleObj]:
-            pygame.draw.rect(screen, WHITE, paddle)
-
+            pygame.draw.rect(screen, WHITE, paddle.rect)
+            
         pygame.draw.rect(screen, WHITE, topWall)
         pygame.draw.rect(screen, WHITE, bottomWall)
         scoreRect = updateScore(lScore, rScore, screen, WHITE, scoreFont)
@@ -210,28 +212,29 @@ def parse_game_state(message: str):
         
         # Create separate objects for left and right paddle data
         # The 'name' field tells us which paddle this data is about
-        leftData = {
-            'pos': data['pos'] if data['name'] == 'left' else 0,
-            'bx': data['bx'],
-            'by': data['by'],
-            'lscore': data['lscore'],
-            'rscore': data['rscore'],
-            'time': data['time']
-        }
-        
-        rightData = {
-            'pos': data['pos'] if data['name'] == 'right' else 0,
-            'bx': data['bx'],
-            'by': data['by'],
-            'lscore': data['lscore'],
-            'rscore': data['rscore'],
-            'time': data['time']
-        }
-        
-        return leftData, rightData
+        if paddleSide == "right":
+            Data = {
+                'pos': data['pos'] if data['name'] == 'left' else 0,
+                'bx': data['bx'],
+                'by': data['by'],
+                'lscore': data['lscore'],
+                'rscore': data['rscore'],
+                'time': data['time']}
+        elif paddleSide == "left":
+            Data = {
+                'pos': data['pos'] if data['name'] == 'right' else 0,
+                'bx': data['bx'],
+                'by': data['by'],
+                'lscore': data['lscore'],
+                'rscore': data['rscore'],
+                'time': data['time']}
+        else:
+            print(f"[WARNING] Unknown paddle side: {paddleSide}")
+            return None
+        return Data
     else:
         print(f"[WARNING] Could not parse message: {message}")
-        return None, None
+        return None
 
 def receive_messages(sock):
     buffer = ""
@@ -291,6 +294,7 @@ def joinServer(ip:str, port:str, errorLabel:tk.Label, app:tk.Tk) -> None:
         print("Waiting for other player to connect...")
         startMsg = msg_queue.get().strip()
         if "START" in startMsg:# Finds that START has been sent over by the server and then extracts the paddle side given their player number
+            global paddleSide
             paddleSide = startMsg.split(":")[1]
             print("Starting game, Opponent Connected!")
         else:
