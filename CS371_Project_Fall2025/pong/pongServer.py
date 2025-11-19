@@ -77,10 +77,14 @@ def handle_client(conn: socket.socket, addr):
         print(f"[CLIENT DISCONNECT] The client: {conn} has disconnected from the server!")
         conn.close()
         usercount -= 1
+        if usercount < 1:
+            twoClientsConnected.set(False)
 
 def start_server():
     global clients
     global usercount
+    global running
+    running = True
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     s.bind((HOST, PORT))
     s.listen()
@@ -90,9 +94,9 @@ def start_server():
      # Allows for continous accepting of clients without blocking any other operations or freezing the server
     def accept_loop():
         global usercount
-        global running
         global clients
-        while True:
+        global running
+        while running:
             try:
                 conn, addr = s.accept()
                 with clientsLock:
@@ -110,36 +114,39 @@ def start_server():
                         twoClientsConnected.set()
                 thread = threading.Thread(target=handle_client, args=(conn, addr), daemon=True)
                 thread.start()
-            except socket.timeout: 
+            except socket.timeout:
                 #Checks for KeyboardInterrupt
                 continue
     
     acceptThread = threading.Thread(target=accept_loop, daemon=True)
     acceptThread.start()
 
-    
-    twoClientsConnected.wait()
-    print("[SERVER] Two clients connected, starting game.")
-    with clientsLock:
-        for conn, paddle_side in clients:
-            if paddle_side != "spectator":
-                try:
-                    conn.sendall(f"START:{paddle_side}\n".encode('utf-8'))
-                except Exception as e:
-                    print(f"[ERROR] Failed to send START to {conn}: {e}")
-    try:
-        acceptThread.join()   # Keeps the main thread alive for catching Keyboard Interrupt
-    except KeyboardInterrupt:
-        print("[ClOSING SERVER]: KEYBOARD INTERRUPT EXCEPTION")
-        running = False
-    finally:
-        print("[CLOSING CLIENTS]")
+    while True:
+        twoClientsConnected.wait()
+        print("[SERVER] Two clients connected, starting game.")
         with clientsLock:
-            for client, _ in clients:#Attempts to close all clients in the client list, if they are still there
-                try: client.close()
-                except: pass
-        s.close()
-        print("[SERVER CLOSED]")
+            for conn, paddle_side in clients:
+                if paddle_side != "spectator":
+                    try:
+                        conn.sendall(f"START:{paddle_side}\n".encode('utf-8'))
+                    except Exception as e:
+                        print(f"[ERROR] Failed to send START to {conn}: {e}")
+        try:
+            acceptThread.join() # Keeps the main thread alive for catching Keyboard Interrupt
+            while running:
+                time.pause(0.5)
+        except KeyboardInterrupt:
+            print("[ClOSING SERVER]: KEYBOARD INTERRUPT EXCEPTION")
+            running = False
+        finally:
+            print("[CLOSING CLIENTS]")
+            with clientsLock:
+                for client, _ in clients:#Attempts to close all clients in the client list, if they are still there
+                    try: client.close()
+                    except: pass
+            s.close()
+            print("[SERVER CLOSED]")
+            break
 
 if __name__ == "__main__":
     global usercount
