@@ -133,7 +133,6 @@ def playGame(screenWidth:int, screenHeight:int, playerPaddle:str, client:socket.
             client.close()
             return
         else:
-
             # ==== Ball Logic =====================================================================
             # Only the host runs the physics and collision logic.
             # Clients will receive the authoritative ball position from the server and must NOT call updatePos.
