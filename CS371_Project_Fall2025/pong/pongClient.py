@@ -100,7 +100,9 @@ def playGame(screenWidth:int, screenHeight:int, playerPaddle:str, client:socket.
                 continue
 
             opponentPaddleObj.rect.y = int(parsed['pos'])
-
+            opponentSync = int(parsed['time'])
+            print("[OPPONENT TICK]:", opponentSync)
+            print("[User TICK]:", sync)
             # Only non-host clients should adopt the authoritative ball position
             if not isHost and parsed is not None:
                 # apply authoritative ball + scores from network
