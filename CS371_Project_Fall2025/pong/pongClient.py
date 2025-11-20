@@ -318,10 +318,8 @@ def joinServer(ip:str, port:str, errorLabel:tk.Label, app:tk.Tk) -> None:
         errorLabel.config(text=f"Connection failed: {e}")
         errorLabel.update()
 
-
-
     # Get the required information from your server (screen width, height & player paddle, "left or "right)
-
+    
     # If you have messages you'd like to show the user use the errorLabel widget like so
     errorLabel.config(text=f"Some update text. You input: IP: {ip}, Port: {port}")
     # You may or may not need to call this, depending on how many times you update the label
