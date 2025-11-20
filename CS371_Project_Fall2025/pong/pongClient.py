@@ -91,8 +91,8 @@ def playGame(screenWidth:int, screenHeight:int, playerPaddle:str, client:socket.
         print("[QUEUE SIZE]:", msg_queue.qsize())
         while not msg_queue.empty():
             incoming = msg_queue.get_nowait()
-            print("[QUEUE RECEIVED]:", incoming)
             parsed = parse_game_state(incoming)
+            print("[PARSED DATA]:", parsed)
             #if parsedL:
             # update opponent paddle based on what server told us
             if parsed is None:
@@ -256,7 +256,6 @@ def receive_messages(sock):
                 print("[CLIENT] Server disconnected.")
                 break
             decoded = chunk.decode('utf-8')
-            print(f"[RECEIVED CHUNK]: {decoded}")
             buffer += decoded  # Add to buffer
             
             # Split by newline and process complete messages
