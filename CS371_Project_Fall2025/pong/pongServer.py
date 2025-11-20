@@ -95,7 +95,6 @@ def start_server():
     def accept_loop():
         global usercount, clients, running
         while running:
-            sleep(0.5)
             try:
                 conn, addr = s.accept()
                 with clientsLock:
@@ -113,9 +112,7 @@ def start_server():
                         twoClientsConnected.set()
                 thread = threading.Thread(target=handle_client, args=(conn, addr), daemon=True)
                 thread.start()
-            except KeyboardInterrupt:
-                #Checks for KeyboardInterrupt
-                running = False
+            except socket.timeout:# Keep running even if timed out
                 continue
     
     acceptThread = threading.Thread(target=accept_loop, daemon=True)
@@ -124,34 +121,38 @@ def start_server():
     while running:
         print("[SERVER] Waiting for two clients to connect... Will time out in 180 seconds")
         twoClientsConnected.wait(timeout=180)
-        print("[SERVER] Two clients connected, starting game.")
-        with clientsLock:
-            for conn, paddle_side in clients:
-                if paddle_side != "spectator":
-                    try:
-                        conn.sendall(f"START:{paddle_side}\n".encode('utf-8'))
-                    except Exception as e:
-                        print(f"[ERROR] Failed to send START to {conn}: {e}")
-        try:
-            while running:
-                sleep(0.5)
-        except KeyboardInterrupt:
-            print("[ClOSING SERVER]: KEYBOARD INTERRUPT EXCEPTION")
-            running = False
-        finally:
-            print("[CLOSING CLIENTS]")
+
+        if twoClientsConnected.is_set():
+            print("[SERVER] Two clients connected, starting game.")
             with clientsLock:
-                for client, _ in clients:#Attempts to close all clients in the client list, if they are still there
-                    try: client.close()
-                    except: pass
+                for conn, paddle_side in clients:
+                    if paddle_side != "spectator":
+                        try:
+                            conn.sendall(f"START:{paddle_side}\n".encode('utf-8'))
+                        except Exception as e:
+                            print(f"[ERROR] Failed to send START to {conn}: {e}")
+            try:
+                while running:
+                    sleep(0.5)
+            except KeyboardInterrupt:
+                print("[ClOSING SERVER]: KEYBOARD INTERRUPT EXCEPTION")
+                running = False
+            finally:
+                print("[CLOSING CLIENTS]")
+                with clientsLock:
+                    for client, _ in clients:#Attempts to close all clients in the client list, if they are still there
+                        try: client.close()
+                        except: pass
+                s.close()
+                print("[SERVER CLOSED]")
+        else:
+            running = False
+            for client, _ in clients:
+                try:client.close()
+                except: pass
             s.close()
             print("[SERVER CLOSED]")
-
-    for client, _ in clients:
-            try:client.close()
-            except: pass
-    s.close()
-    print("[SERVER CLOSED]")
+            return 0
 
 if __name__ == "__main__":
     global usercount

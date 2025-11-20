@@ -121,8 +121,8 @@ def playGame(screenWidth:int, screenHeight:int, playerPaddle:str, client:socket.
             playerPaddleObj.rect.y -= playerPaddleObj.speed
 
         # If the game is over, display the win message
-        if lScore > 4 or rScore > 4:
-            winText = "Player 1 Wins! " if lScore > 4 else "Player 2 Wins! "
+        if lScore > 9 or rScore > 9:
+            winText = "Player 1 Wins! " if lScore > 9 else "Player 2 Wins! "
             textSurface = winFont.render(winText, False, WHITE, (0,0,0))
             textRect = textSurface.get_rect()
             textRect.center = (int(screenWidth/2), int(screenHeight/2))
@@ -133,7 +133,6 @@ def playGame(screenWidth:int, screenHeight:int, playerPaddle:str, client:socket.
             client.close()
             return
         else:
-
             # ==== Ball Logic =====================================================================
             # Only the host runs the physics and collision logic.
             # Clients will receive the authoritative ball position from the server and must NOT call updatePos.
