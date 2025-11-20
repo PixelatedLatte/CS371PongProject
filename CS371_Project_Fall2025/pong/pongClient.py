@@ -210,13 +210,14 @@ def parse_game_state(message: str):
         data = match.groupdict()
         # Convert numeric values to int
         for key in ['pos', 'bx', 'by', 'lscore', 'rscore', 'time']:
-            data[key] = int(data[key])
-        
-        print(f"[DEBUG] Parsed data: {data}")
-        
+            data[key] = int(data[key])        
         # Create separate objects for left and right paddle data
         # The 'name' field tells us which paddle this data is about
+        print(f"[DEBUG] Paddle Side: {data['name']}")
         if paddleSide == "right":
+            if data['name'] != "left":
+                print(f"[WARNING] Mismatched paddle side, wont process")
+                return None
             Data = {
                 'pos': data['pos'] if data['name'] == 'left' else 0,
                 'bx': data['bx'],
@@ -225,6 +226,9 @@ def parse_game_state(message: str):
                 'rscore': data['rscore'],
                 'time': data['time']}
         elif paddleSide == "left":
+            if data['name'] != "right":
+                print(f"[WARNING] Mismatched paddle side, wont process")
+                return None
             Data = {
                 'pos': data['pos'] if data['name'] == 'right' else 0,
                 'bx': data['bx'],
@@ -259,7 +263,6 @@ def receive_messages(sock):
                 message, buffer = buffer.split('\n', 1)  # Get first complete message
                 if message.strip():  # Only process non-empty messages
                     msg_queue.put(message.strip())
-                    print(f"[QUEUED MESSAGE]: {message.strip()}")
         except Exception as e:
             print("Receive error:", e)
             break
