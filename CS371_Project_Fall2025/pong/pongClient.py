@@ -87,45 +87,30 @@ def playGame(screenWidth:int, screenHeight:int, playerPaddle:str, client:socket.
         # This prevents old paddle/ball pixels from being left on the screen
         # =========================================================================================
             # drain the queue and apply the most recent state(s)
-        #print("[CHECKING QUEUE]")
+        print("[CHECKING QUEUE]")
         print("[QUEUE SIZE]:", msg_queue.qsize())
         while not msg_queue.empty():
             incoming = msg_queue.get_nowait()
-            parsed = parse_game_state(incoming)
+            secondincoming = msg_queue.get_nowait()
+            parsed = parse_game_state(incoming, secondincoming)
             print("[PARSED DATA]:", parsed)
             #if parsedL:
             # update opponent paddle based on what server told us
             if parsed is None:
-                #print("[WARNING] Received unparsable message, ignoring.")
+                print("[WARNING] Received unparsable message, ignoring.")
                 continue
-            opponentSync = int(parsed['time'])
 
+            opponentPaddleObj.rect.y = int(parsed['pos'])
+            opponentSync = int(parsed['time'])
             print("[OPPONENT TICK]:", opponentSync)
             print("[User TICK]:", sync)
             # Only non-host clients should adopt the authoritative ball position
-            # --------------------------------------------------------------------------------
-            # 4. Tick drift correction (keeps clients aligned)
-            # --------------------------------------------------------------------------------
-            drift = sync - opponentSync
-            if drift > 5:
-                # Hard correction for large drift
-                print(f"[DRIFT WARNING] Local={opponentSync}, Opponent={sync}")
-                sync = opponentSync
-            else:
-                # Gentle correction for small drift
-                sync -= int(drift * 0.25)
-            if isHost:
-                continue
-
-            authoritative_x = int(parsed["bx"])
-            authoritative_y = int(parsed["by"])
-
-            # Smooth 20% toward authoritative each frame
-            ball.rect.x += int(0.2 * (authoritative_x - ball.rect.x))
-            ball.rect.y += int(0.2 * (authoritative_y - ball.rect.y))
-
-            lScore = int(parsed["lscore"])
-            rScore = int(parsed["rscore"])
+            if not isHost and parsed is not None:
+                # apply authoritative ball + scores from network
+                ball.rect.x = int(parsed.get('bx', ball.rect.x))
+                ball.rect.y = int(parsed.get('by', ball.rect.y))
+                lScore = int(parsed.get('lscore', lScore))
+                rScore = int(parsed.get('rscore', rScore))
 
         # Now clear the screen (must happen AFTER network updates)
         screen.fill((0,0,0))
@@ -220,44 +205,58 @@ def playGame(screenWidth:int, screenHeight:int, playerPaddle:str, client:socket.
 MSG_PATTERN = re.compile(
     r'PN:(?P<name>\w+):PP:(?P<pos>\d+):BX:(?P<bx>\d+):BY:(?P<by>\d+):LS:(?P<lscore>\d+):RS:(?P<rscore>\d+):TM:(?P<time>\d+)')
 
-def parse_game_state(message: str):
-    match = MSG_PATTERN.match(message)
-    if match:
-        data = match.groupdict()
+def parse_game_state(message: str, secondmessage: str, ):
+    match1 = MSG_PATTERN.match(message)
+    match2 = MSG_PATTERN.match(secondmessage)
+    print (f"[DEBUG] Matching messages: {message} , {secondmessage}")
+    if (match1 and match2) and (match1.group('name') != match2.group('name')):
+
+        data1 = match1.groupdict()
+        data2 = match2.groupdict()
         # Convert numeric values to int
-        for key in ['pos', 'bx', 'by', 'lscore', 'rscore', 'time']:
-            data[key] = int(data[key])        
+
+        for key in ['name', 'pos', 'bx', 'by', 'lscore', 'rscore', 'time']:
+            data1[key] = int(data1[key])  
+            data2[key] = int(data2[key])      
+        if data1['time'] > data2['time']:
+            data2['bx'] = data1['bx']
+            data2['by'] = data1['by']
+            data2['time'] = data1['time']
+            data2['lscore'] = data1['lscore']
+            data2['rscore'] = data1['rscore']
+        elif data2['time'] > data1['time']:
+            data1['bx'] = data2['bx']
+            data1['by'] = data2['by']
+            data1['time'] = data2['time']
+            data1['lscore'] = data2['lscore']
+            data1['rscore'] = data2['rscore']
+
+
         # Create separate objects for left and right paddle data
         # The 'name' field tells us which paddle this data is about
-        print(f"[DEBUG] Paddle Side: {data['name']}")
-        if paddleSide == "right":
-            if data['name'] != "left":
-                print(f"[WARNING] Mismatched paddle side, wont process")
-                return None
+        #print(f"[DEBUG] Paddle Side: {data1['name']}")
+        if paddleSide == data2['name']:
             Data = {
-                'pos': data['pos'] if data['name'] == 'left' else 0,
-                'bx': data['bx'],
-                'by': data['by'],
-                'lscore': data['lscore'],
-                'rscore': data['rscore'],
-                'time': data['time']}
-        elif paddleSide == "left":
-            if data['name'] != "right":
-                print(f"[WARNING] Mismatched paddle side, wont process")
-                return None
+                'pos': data1['pos'] if data1['name'] == 'left' else 0,
+                'bx': data1['bx'],
+                'by': data1['by'],
+                'lscore': data1['lscore'],
+                'rscore': data1['rscore'],
+                'time': data1['time']}
+        elif paddleSide == data1['name']:
             Data = {
-                'pos': data['pos'] if data['name'] == 'right' else 0,
-                'bx': data['bx'],
-                'by': data['by'],
-                'lscore': data['lscore'],
-                'rscore': data['rscore'],
-                'time': data['time']}
+                'pos': data2['pos'] if data2['name'] == 'right' else 0,
+                'bx': data2['bx'],
+                'by': data2['by'],
+                'lscore': data2['lscore'],
+                'rscore': data2['rscore'],
+                'time': data2['time']}
         else:
             print(f"[WARNING] Unknown paddle side: {paddleSide}")
             return None
         return Data
     else:
-        print(f"[WARNING] Could not parse message: {message}")
+        print(f"[WARNING] Could not parse message: {message} and {secondmessage}")
         return None
 
 def receive_messages(sock):
