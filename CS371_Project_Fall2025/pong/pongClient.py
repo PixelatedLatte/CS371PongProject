@@ -87,7 +87,7 @@ def playGame(screenWidth:int, screenHeight:int, playerPaddle:str, client:socket.
         # This prevents old paddle/ball pixels from being left on the screen
         # =========================================================================================
             # drain the queue and apply the most recent state(s)
-        print("[CHECKING QUEUE]")
+        #print("[CHECKING QUEUE]")
         print("[QUEUE SIZE]:", msg_queue.qsize())
         while not msg_queue.empty():
             incoming = msg_queue.get_nowait()
@@ -96,35 +96,27 @@ def playGame(screenWidth:int, screenHeight:int, playerPaddle:str, client:socket.
             #if parsedL:
             # update opponent paddle based on what server told us
             if parsed is None:
-                print("[WARNING] Received unparsable message, ignoring.")
+                #print("[WARNING] Received unparsable message, ignoring.")
                 continue
-            opponentPaddleObj.rect.y = int(parsed['pos'])
             opponentSync = int(parsed['time'])
-            if (sync - opponentSync) > 5:
-                print("[SYNC WARNING] Large time difference between clients detected!")
-                continue
+
             print("[OPPONENT TICK]:", opponentSync)
             print("[User TICK]:", sync)
             # Only non-host clients should adopt the authoritative ball position
             # --------------------------------------------------------------------------------
             # 4. Tick drift correction (keeps clients aligned)
             # --------------------------------------------------------------------------------
-            opponent_tick = int(parsed["tick"])
-            local_tick = sync
-            drift = local_tick - opponent_tick
-            if abs(drift) > 5:
+            drift = sync - opponentSync
+            if drift > 5:
                 # Hard correction for large drift
-                print(f"[DRIFT WARNING] Local={local_tick}, Opponent={opponent_tick}")
-                sync = opponent_tick
+                print(f"[DRIFT WARNING] Local={opponentSync}, Opponent={sync}")
+                sync = opponentSync
             else:
                 # Gentle correction for small drift
                 sync -= int(drift * 0.25)
             if isHost:
                 continue
 
-            # --------------------------------------------------------------------------------
-            # 6. Client adopts host ball + scores, BUT SMOOTHLY
-            # --------------------------------------------------------------------------------
             authoritative_x = int(parsed["bx"])
             authoritative_y = int(parsed["by"])
 
