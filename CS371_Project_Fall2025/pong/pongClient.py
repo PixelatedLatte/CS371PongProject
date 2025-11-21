@@ -37,7 +37,7 @@ def playGame(screenWidth:int, screenHeight:int, playerPaddle:str, client:socket.
 
     # Display objects
     screen = pygame.display.set_mode((screenWidth, screenHeight))
-    winMessage = pygame.Rect(0,0,0,0)
+    pygame.Rect(0,0,0,0)
     topWall = pygame.Rect(-10,0,screenWidth+20, 10)
     bottomWall = pygame.Rect(-10, screenHeight-10, screenWidth+20, 10)
     centerLine = []
@@ -126,7 +126,7 @@ def playGame(screenWidth:int, screenHeight:int, playerPaddle:str, client:socket.
             textSurface = winFont.render(winText, False, WHITE, (0,0,0))
             textRect = textSurface.get_rect()
             textRect.center = (int(screenWidth/2), int(screenHeight/2))
-            winMessage = screen.blit(textSurface, textRect)
+            screen.blit(textSurface, textRect)
             pygame.display.update()
             time.sleep(3)
             pygame.quit()
@@ -136,31 +136,31 @@ def playGame(screenWidth:int, screenHeight:int, playerPaddle:str, client:socket.
             # ==== Ball Logic =====================================================================
             # Only the host runs the physics and collision logic.
             # Clients will receive the authoritative ball position from the server and must NOT call updatePos.
-            if isHost:
-                ball.updatePos()
+            #if isHost:
+            ball.updatePos()
 
                 # If the ball makes it past the edge of the screen, update score, etc.
-                if ball.rect.x > screenWidth:
-                    lScore += 1
-                    pointSound.play()
-                    ball.reset(nowGoing="left")
-                elif ball.rect.x < 0:
-                    rScore += 1
-                    pointSound.play()
-                    ball.reset(nowGoing="right")
-                    
-                # If the ball hits a paddle (host authoritative)
-                if ball.rect.colliderect(playerPaddleObj.rect):
-                    bounceSound.play()
-                    ball.hitPaddle(playerPaddleObj.rect.center[1])
-                elif ball.rect.colliderect(opponentPaddleObj.rect):
-                    bounceSound.play()
-                    ball.hitPaddle(opponentPaddleObj.rect.center[1])
-                    
-                # If the ball hits a wall
-                if ball.rect.colliderect(topWall) or ball.rect.colliderect(bottomWall):
-                    bounceSound.play()
-                    ball.hitWall()
+            if ball.rect.x > screenWidth:
+                lScore += 1
+                pointSound.play()
+                ball.reset(nowGoing="right")
+            elif ball.rect.x < 0:
+                rScore += 1
+                pointSound.play()
+                ball.reset(nowGoing="left")
+                
+            # If the ball hits a paddle (host authoritative)
+            if ball.rect.colliderect(playerPaddleObj.rect):
+                bounceSound.play()
+                ball.hitPaddle(playerPaddleObj.rect.center[1])
+            elif ball.rect.colliderect(opponentPaddleObj.rect):
+                bounceSound.play()
+                ball.hitPaddle(opponentPaddleObj.rect.center[1])
+                
+            # If the ball hits a wall
+            if ball.rect.colliderect(topWall) or ball.rect.colliderect(bottomWall):
+                bounceSound.play()
+                ball.hitWall()
             # Clients do NOT call ball.updatePos(); they just draw ball at last received coordinates
             pygame.draw.rect(screen, WHITE, ball.rect)
             # ==== End Ball Logic =================================================================
@@ -177,7 +177,7 @@ def playGame(screenWidth:int, screenHeight:int, playerPaddle:str, client:socket.
             
         pygame.draw.rect(screen, WHITE, topWall)
         pygame.draw.rect(screen, WHITE, bottomWall)
-        scoreRect = updateScore(lScore, rScore, screen, WHITE, scoreFont)
+        updateScore(lScore, rScore, screen, WHITE, scoreFont)
 
         # =========================================================================================
         # Now send our update to the server (after the host has updated the ball so it sends authoritative coords)
