@@ -98,18 +98,42 @@ def playGame(screenWidth:int, screenHeight:int, playerPaddle:str, client:socket.
             if parsed is None:
                 print("[WARNING] Received unparsable message, ignoring.")
                 continue
-
             opponentPaddleObj.rect.y = int(parsed['pos'])
             opponentSync = int(parsed['time'])
+            if (sync - opponentSync) > 5:
+                print("[SYNC WARNING] Large time difference between clients detected!")
+                continue
             print("[OPPONENT TICK]:", opponentSync)
             print("[User TICK]:", sync)
             # Only non-host clients should adopt the authoritative ball position
-            if not isHost and parsed is not None:
-                # apply authoritative ball + scores from network
-                ball.rect.x = int(parsed.get('bx', ball.rect.x))
-                ball.rect.y = int(parsed.get('by', ball.rect.y))
-                lScore = int(parsed.get('lscore', lScore))
-                rScore = int(parsed.get('rscore', rScore))
+            # --------------------------------------------------------------------------------
+            # 4. Tick drift correction (keeps clients aligned)
+            # --------------------------------------------------------------------------------
+            opponent_tick = int(parsed["tick"])
+            local_tick = sync
+            drift = local_tick - opponent_tick
+            if abs(drift) > 5:
+                # Hard correction for large drift
+                print(f"[DRIFT WARNING] Local={local_tick}, Opponent={opponent_tick}")
+                sync = opponent_tick
+            else:
+                # Gentle correction for small drift
+                sync -= int(drift * 0.25)
+            if isHost:
+                continue
+
+            # --------------------------------------------------------------------------------
+            # 6. Client adopts host ball + scores, BUT SMOOTHLY
+            # --------------------------------------------------------------------------------
+            authoritative_x = int(parsed["bx"])
+            authoritative_y = int(parsed["by"])
+
+            # Smooth 20% toward authoritative each frame
+            ball.rect.x += int(0.2 * (authoritative_x - ball.rect.x))
+            ball.rect.y += int(0.2 * (authoritative_y - ball.rect.y))
+
+            lScore = int(parsed["lscore"])
+            rScore = int(parsed["rscore"])
 
         # Now clear the screen (must happen AFTER network updates)
         screen.fill((0,0,0))
