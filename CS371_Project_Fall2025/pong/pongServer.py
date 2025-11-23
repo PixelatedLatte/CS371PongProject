@@ -26,16 +26,11 @@ twoClientsConnected = threading.Event()#Prevents server from running without the
 #Sends the messages to all clients within the server
 def broadcast(message):
     with clientsLock:
-        bad = []
-        for c, side in clients:
+        for c, _ in clients:
             try:
                 c.sendall(message)
             except:
-                bad.append((c, side))
-        for b in bad:
-            clients.remove(b)
-
-
+                pass
 
 # Regex to parse each game message
 MSG_PATTERN = re.compile(
@@ -99,7 +94,6 @@ def handle_client(conn: socket.socket, addr):
 
         if usercount <= 1:
             running = False
-            twoClientsConnected.clear()
 #Starts the server, accepts clients, and starts the game when two clients are connected
 
 def start_server():
@@ -164,19 +158,18 @@ def start_server():
         except KeyboardInterrupt:
             print("[ClOSING SERVER]: KEYBOARD INTERRUPT EXCEPTION")
             running = False
-
         finally:
             print("[CLOSING CLIENTS]")
+            running = False
             with clientsLock:
                 for client, _ in clients:
                     try:
                         client.close()
                     except:
                         pass
-
-            s.close()
             print("[SERVER CLOSED]")
-
+            s.close()
+            return 0
     else:
         running = False
         for client, _ in clients:
