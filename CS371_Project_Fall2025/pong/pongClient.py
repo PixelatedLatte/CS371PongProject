@@ -114,12 +114,12 @@ def playGame(screenWidth:int, screenHeight:int, playerPaddle:str, client:socket.
                 if paddleSide == "left":
                     sync = right['time']
 
-            if not isHost:
-                # Update ball position and scores from authoritative message
-                ball.rect.x = authoritative['bx']
-                ball.rect.y = authoritative['by']
-                lScore = authoritative['lscore']
-                rScore = authoritative['rscore']
+            
+            # Update ball position and scores from authoritative message
+            ball.rect.x = authoritative['bx']
+            ball.rect.y = authoritative['by']
+            lScore = authoritative['lscore']
+            rScore = authoritative['rscore']
 
             # Update opponent paddle position
             if paddleSide == "left":
@@ -235,8 +235,6 @@ def parse_game_state(message: str):
     else:
         print(f"[WARNING] Could not parse message: {message}")
         return None
-
-
 
 
 def receive_messages(sock):
