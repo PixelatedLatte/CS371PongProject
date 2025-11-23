@@ -17,9 +17,9 @@ import time
 
 from assets.code.helperCode import *
 
-# This is the main game loop.  For the most part, you will not need to modify this.  The sections
-# where you should add to the code are marked.  Feel free to change any part of this project
-# to suit your needs.
+# The main game loop, called after connecting to the server and getting the required info
+# Added msg_queue parameter to receive messages from the server, as our client code caches 
+# incoming messages in a queue (see receive_messages function)
 def playGame(screenWidth:int, screenHeight:int, playerPaddle:str, client:socket.socket, msg_queue:queue.Queue) -> None:
     
     print("The game started!")
@@ -66,9 +66,9 @@ def playGame(screenWidth:int, screenHeight:int, playerPaddle:str, client:socket.
     sync = 0
 
     while True:
-        # Wiping the screen
-        screen.fill((0,0,0))
-
+        # Took out screen.fill((0,0,0)) and moved it as player bars and balls 
+        # had white trails that were not leaving the screen
+        
         # Getting keypress events
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
@@ -84,14 +84,22 @@ def playGame(screenWidth:int, screenHeight:int, playerPaddle:str, client:socket.
             elif event.type == pygame.KEYUP:
                 playerPaddleObj.moving = ""
 
+        # Create a dictionary to hold the latest messages from each paddle
         latest_messages = {"left": {}, "right": {}}
 
+        # While there are messages in the queue, process them
         while not msg_queue.empty():
-            msg = msg_queue.get_nowait()
-            parsed = parse_game_state(msg)
+
+            # Add and pop message from queue
+            incomingmessage = msg_queue.get_nowait()
+            parsed = parse_game_state(incomingmessage)
+
+            # If the message could not be parsed, skip it
             if parsed is None:
                 print("[WARNING] Received unparsable message, ignoring.")
                 continue
+
+            # Store the latest message from each paddle
             latest_messages[parsed['name']] = parsed
 
         # Only update if we have messages from both paddles
@@ -99,7 +107,8 @@ def playGame(screenWidth:int, screenHeight:int, playerPaddle:str, client:socket.
             left = latest_messages['left']
             right = latest_messages['right']
                 
-            # Pick authoritative ball & scores based on highest 'time'
+            # Use the data from the client with the higher timestamp,
+            # also update sync variable so that both users stay in sync
             if left['time'] >= right['time']:
                 authoritative = left
                 if paddleSide == "right":
@@ -110,22 +119,24 @@ def playGame(screenWidth:int, screenHeight:int, playerPaddle:str, client:socket.
                     sync = right['time']
 
             
-            # Update ball position and scores from authoritative message
+            # Update ball position by the user that had the latest timestamp
             ball.rect.x = authoritative['bx']
             ball.rect.y = authoritative['by']
             lScore = authoritative['lscore']
             rScore = authoritative['rscore']
 
             # Update opponent paddle position
-            if paddleSide == "left":
+            if playerPaddle == "left":
                 opponentPaddleObj.rect.y = right['pos']
             else:
                 opponentPaddleObj.rect.y = left['pos']
 
-            print(f"[SYNC] Left time: {left['time']}, Right time: {right['time']}, "
-                f"Authoritative: {authoritative['name']}")
 
-        #screen.fill((0,0,0))
+            #print(f"[SYNC] Left time: {left['time']}, Right time: {right['time']}, "
+                #f"Authoritative: {authoritative['name']}")
+
+        # Decided to clear the screen here instead to prevent trails
+        screen.fill((0,0,0))
 
         # Update the player paddle and opponent paddle's location on the screen
         for paddle in [playerPaddleObj, opponentPaddleObj]:
@@ -137,6 +148,7 @@ def playGame(screenWidth:int, screenHeight:int, playerPaddle:str, client:socket.
                     paddle.rect.y -= paddle.speed
 
         # If the game is over, display the win message
+        # Switched score to 9 to make the game longer
         if lScore > 9 or rScore > 9:
             winText = "Player 1 Wins! " if lScore > 9 else "Player 2 Wins! "
             textSurface = winFont.render(winText, False, WHITE, (0,0,0))
@@ -144,17 +156,18 @@ def playGame(screenWidth:int, screenHeight:int, playerPaddle:str, client:socket.
             textRect.center = (int(screenWidth/2), int(screenHeight/2))
             winMessage = screen.blit(textSurface, textRect)
             
+            # Also created a sleep and auto quit after displaying win message
+            # So that code can exit properly instead of hanging and rerun sooner
             pygame.display.update()
             time.sleep(3)
             pygame.quit()
             client.close()
             return
         else:
-            # ==== Ball Logic =====================================================================
- 
-            ball.updatePos()
 
-                # If the ball makes it past the edge of the screen, update score, etc.
+            ball.updatePos()
+            
+            # If the ball makes it past the edge of the screen, update score, etc.
             if ball.rect.x > screenWidth:
                 lScore += 1
                 pointSound.play()
@@ -176,87 +189,94 @@ def playGame(screenWidth:int, screenHeight:int, playerPaddle:str, client:socket.
             if ball.rect.colliderect(topWall) or ball.rect.colliderect(bottomWall):
                 bounceSound.play()
                 ball.hitWall()
-            # Clients do NOT call ball.updatePos(); they just draw ball at last received coordinates
+
             pygame.draw.rect(screen, WHITE, ball.rect)
-            # ==== End Ball Logic =================================================================
 
         # Drawing the dotted line in the center
         for i in centerLine:
             pygame.draw.rect(screen, WHITE, i)
         # Drawing the player's new location
-        print("[DRAWING PADDLES]")
-        print("[OPPONENT PADDLE Y]:", playerPaddleObj.rect.y)
+
+        #print("[DRAWING PADDLES]")
+        #print("[OPPONENT PADDLE Y]:", playerPaddleObj.rect.y)
 
         for paddle in [playerPaddleObj, opponentPaddleObj]:
             pygame.draw.rect(screen, WHITE, paddle.rect)
             
         pygame.draw.rect(screen, WHITE, topWall)
         pygame.draw.rect(screen, WHITE, bottomWall)
-        scoreRect = updateScore(lScore, rScore, screen, WHITE, scoreFont)
-        pygame.display.update([topWall, bottomWall, ball.rect, leftPaddle.rect, rightPaddle.rect, scoreRect, winMessage])
+        
+        # New varient of updateScore + pygame.display.update as other varient (commented out) was causing problems
+        #scoreRect = updateScore(lScore, rScore, screen, WHITE, scoreFont)
+        #pygame.display.update([topWall, bottomWall, ball.rect, leftPaddle.rect, rightPaddle.rect, scoreRect, winMessage])
+        
+        updateScore(lScore, rScore, screen, WHITE, scoreFont)
+        pygame.display.update()
 
-        # =========================================================================================
-        # Now send our update to the server (after the host has updated the ball so it sends authoritative coords)
+        # Encoding and sending the game state to the server
+        # Using a MSG_PATTERN that is compatible with the server's parsing function
         try:
             msg = f"PN:{playerPaddle}:PP:{playerPaddleObj.rect.y}:BX:{ball.rect.x}:BY:{ball.rect.y}:LS:{lScore}:RS:{rScore}:TM:{sync}\n"
             client.sendall(msg.encode('utf-8'))
         except:
+            # If the client loses connection to the server, exit the game loop to prevent hanging
             print("Lost connection!")
             pygame.quit()
             client.close()
             return
-        # =========================================================================================
-
-
-        # This number should be synchronized between you and your opponent.  If your number is larger
-        # then you are ahead of them in time, if theirs is larger, they are ahead of you, and you need to
-        # catch up (use their info)
+        
         clock.tick(60)
         sync += 1
 
         
-
+# Regular expression pattern to parse incoming game state messages
+# Parses name, paddle position, ball x/y, left/right score, and sync time
 MSG_PATTERN = re.compile(
     r'PN:(?P<name>\w+):PP:(?P<pos>\d+):BX:(?P<bx>\d+):BY:(?P<by>\d+):LS:(?P<lscore>\d+):RS:(?P<rscore>\d+):TM:(?P<time>\d+)')
 
+# Parses the game state message received from the server
 def parse_game_state(message: str):
+
+    # Use regex to parse the message
     match = MSG_PATTERN.match(message)
+
+    # If the message matches the pattern, throw vars into a dict and convert numeric values to int
     if match:
         data = match.groupdict()
         for key in ['pos', 'bx', 'by', 'lscore', 'rscore', 'time']:
             data[key] = int(data[key])
         return data
+    # If the message does not match, return None (handled in the playgame function)
     else:
         print(f"[WARNING] Could not parse message: {message}")
         return None
 
-
+# Thread function to continuously receive messages from the server
 def receive_messages(sock):
+    # Creates a buffer to hold incomplete messages
     buffer = ""
-
     while True:
         try:
+            # Large amount of bytes to ensure full messages are received
             chunk = sock.recv(4096)
-
             if not chunk:
                 print("[CLIENT] Server disconnected.")
                 break
+            # decode and add to buffer
             decoded = chunk.decode('utf-8')
-            buffer += decoded  # Add to buffer
+            buffer += decoded
             
-            # Split by newline and process complete messages
+            # Split by newline to process each send gamestate
             while '\n' in buffer:
-                message, buffer = buffer.split('\n', 1)  # Get first complete message
-                if message.strip():  # Only process non-empty messages
+                message, buffer = buffer.split('\n', 1)  
+                # Only process non-empty messages
+                if message.strip():
                     msg_queue.put(message.strip())
+        # Break if error
         except Exception as e:
             print("Receive error:", e)
             break
 
-# This is where you will connect to the server to get the info required to call the game loop.  Mainly
-# the screen width, height and player paddle (either "left" or "right")
-# If you want to hard code the screen's dimensions into the code, that's fine, but you will need to know
-# which client is which
 def joinServer(ip:str, port:str, errorLabel:tk.Label, app:tk.Tk) -> None:
 
     # Purpose:      This method is fired when the join button is clicked
@@ -266,18 +286,18 @@ def joinServer(ip:str, port:str, errorLabel:tk.Label, app:tk.Tk) -> None:
     # errorLabel    A tk label widget, modify it's text to display messages to the user (example below)
     # app           The tk window object, needed to kill the window
     
-    # Create a socket and connect to the server
-    # You don't have to use SOCK_STREAM, use what you think is best
     print("Connecting to server at", ip, "on port", port)
     try:
+        # Create and connect the socket of new client
         client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        client.connect((ip, int(port)))  # Client connects only
+        client.connect((ip, int(port)))  
 
         # Receive message from server continuously
         global msg_queue
         msg_queue = queue.Queue()
-        # Start the receiver thread properly
-        # Update UI
+
+        # Create a thread for each client to receive messages and add them to the queue
+        # deamon thread to make sure the thread closes when the main program exits
         receiver_thread = threading.Thread(target=receive_messages, args=(client,), daemon=True)
         receiver_thread.start()
 
@@ -286,7 +306,10 @@ def joinServer(ip:str, port:str, errorLabel:tk.Label, app:tk.Tk) -> None:
 
         print("Waiting for other player to connect...")
         startMsg = msg_queue.get().strip()
-        if "START" in startMsg:# Finds that START has been sent over by the server and then extracts the paddle side given their player number
+
+        # Initial message from server should be START:<paddleSide> to assign user to paddle side
+        # Cant be in regular loop as we need paddle side before starting game
+        if "START" in startMsg:
             global paddleSide
             paddleSide = startMsg.split(":")[1]
             print("Starting game, Opponent Connected!")
@@ -294,12 +317,14 @@ def joinServer(ip:str, port:str, errorLabel:tk.Label, app:tk.Tk) -> None:
             print(f"Unexpected message from server: {startMsg}")
             print(f"Closing game, something went wrong.")
             return
-
+        
+        # Close the tkinter window and start the game
         app.withdraw()
         print(f"Starting game as {paddleSide} paddle.")
         if paddleSide == "left" or paddleSide == "right":
             playGame(640, 480, paddleSide, client, msg_queue)
-        else:#There was a problem with the name of paddleSide sent and extracted
+        else:
+            #There was a problem with the name of paddleSide sent and extracted
             print(f"Unexpect Paddle side, disconnecting.")
             return
         print("Game Ended, closing client.")
@@ -314,12 +339,6 @@ def joinServer(ip:str, port:str, errorLabel:tk.Label, app:tk.Tk) -> None:
     errorLabel.config(text=f"Some update text. You input: IP: {ip}, Port: {port}")
     # You may or may not need to call this, depending on how many times you update the label
     errorLabel.update()     
-
-    #Close this window and start the game with the info passed to you from the server
-    # app.withdraw()     # Hides the window (we'll kill it later)
-    # playGame(screenWidth, screenHeight, ("left"|"right"), client)  # User will be either left or right paddle
-    # app.quit()         # Kills the window
-
 
 # This displays the opening screen, you don't need to edit this (but may if you like)
 def startScreen():
@@ -354,8 +373,3 @@ def startScreen():
 
 if __name__ == "__main__":
     startScreen()
-    
-    # Uncomment the line below if you want to play the game without a server to see how it should work
-    # the startScreen() function should call playGame with the arguments given to it by the server this is
-    # here for demo purposes only
-    #playGame(640, 480,"left",socket.socket(socket.AF_INET, socket.SOCK_STREAM))
