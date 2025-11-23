@@ -55,7 +55,6 @@ def parse_game_state(message: str):
 def handle_client(conn: socket.socket, addr):
     global usercount, running
     buffer = ""
-
     try:
         while True:
             chunk = conn.recv(4096)
@@ -85,7 +84,11 @@ def handle_client(conn: socket.socket, addr):
         pass
 
     finally:
+        #Finally ends a handle_client thread by removing its instance of itself in the list and then closing and reducing the number
+        #of clients in the usercount variable by 1, this would be useful if we had more time to implement a way of continuously playing more
+        #games after finishing one and also handling spectator clients
         with clientsLock:
+            #This finds the one client in the client list and removes it from the list of tuples
             clients[:] = [(c, side) for c, side in clients if c != conn]
             print(f"[CLIENT DISCONNECT] The client: {conn} has disconnected from the server!")
 
@@ -105,13 +108,19 @@ def start_server():
     s.settimeout(1.0)#For periodically checking for KeyboardInterrupt
     print(f"[LISTENING] Server listening on {HOST}:{PORT}")
     
-    # Allows for continuous accepting of clients without blocking any other operations or freezing the server
+    # Allows for continous accepting of clients without blocking any other operations or freezing the server
+    # This would be a more helpful definition given we were also account spectators properly, but there is no way of doing a spectator
+    # given the time we had to complete the project.
     def accept_loop():
         global usercount, clients, running
         while running:
             try:
+                # Try to accept each client that attempts to connect
                 conn, addr = s.accept()
 
+                # clientsLock is used here to ensure that if two clients are connecting at the same time, there is no possible
+                # way that both clients will connect with the same paddle since the clients will not be able to finalize a connection
+                # until one is done initializing itself
                 with clientsLock:
                     if usercount == 0:
                         paddle_side = "left"
@@ -120,30 +129,33 @@ def start_server():
                     else:
                         paddle_side = "spectator"
 
+                    # Adds the connection and paddle_side as a tuple into the clients list
                     clients.append((conn, paddle_side))
                     usercount += 1
                     print(f"[NEW CONNECTION] {addr} assigned to {paddle_side} paddle. Total clients: {usercount}")
 
-                    if usercount >= REQUIRED_NUM_CLIENTS:
+                    if usercount >= REQUIRED_NUM_CLIENTS:# Sets the twoClientsConnected flag to true, indicating there are two clients connected
                         twoClientsConnected.set()
 
+                #Starts a thread for handle_client, will not send any messages out given there will be no messages coming into the server yet
+                #Game has not started
                 thread = threading.Thread(target=handle_client, args=(conn, addr), daemon=True)
                 thread.start()
 
-            except socket.timeout:
+            except socket.timeout:# Keep running even if timed out, do not want to stop accepting clients
                 continue
     
     acceptThread = threading.Thread(target=accept_loop, daemon=True)
     acceptThread.start()
-
-
+    #The server is waiting for the two users to finally join the server
     print("[SERVER] Waiting for two clients to connect... Will time out in 180 seconds")
     twoClientsConnected.wait(timeout=180)
-
     #The server will never run this if it times out, given that the twoClientsConnected flag will never be set
     if twoClientsConnected.is_set():
         print("[SERVER] Two clients connected, starting game.")
 
+        #Clients lock here ensures that we send all paddle_sides out to their respective clients properly and just in general
+        #is a good practice for handling the clients properly
         with clientsLock:
             for conn, paddle_side in clients:
                 if paddle_side != "spectator":
@@ -152,16 +164,18 @@ def start_server():
                     except Exception as e:
                         print(f"[ERROR] Failed to send START to {conn}: {e}")
 
+        #We should continue waiting 0.5 seconds to ensure the server can detect a KeyboardInterrupt and close the server
+        #forcefully if need be
         try:
             while running:
                 sleep(0.5)
-        except KeyboardInterrupt:
+        except KeyboardInterrupt:#Detects if ctrl+c has been clicked and will turn running to False, which then leads to finally
             print("[ClOSING SERVER]: KEYBOARD INTERRUPT EXCEPTION")
             running = False
-        finally:
+        finally:#This will finally close down the server after removing each clients connection from the list and closing their connections
             print("[CLOSING CLIENTS]")
             running = False
-            with clientsLock:
+            with clientsLock:#Attempts to close all clients in the client list, if they are still there
                 for client, _ in clients:
                     try:
                         client.close()
@@ -170,7 +184,7 @@ def start_server():
             print("[SERVER CLOSED]")
             s.close()
             return 0
-    else:
+    else:#This is played if the server times out, since there would be no way to get to the finally clause inside of the if statement if timeout occurs
         running = False
         for client, _ in clients:
             try:
