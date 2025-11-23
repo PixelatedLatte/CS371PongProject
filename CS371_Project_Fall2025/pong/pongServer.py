@@ -17,14 +17,14 @@ import threading
 import re
 from time import time
 
-REQUIRED_NUM_CLIENTS = 2
-clients = []
-userCount = 0
-running = True
-gameStarted = False
-clientsLock = threading.Lock()
-twoClientsConnected = threading.Event()
+REQUIRED_NUM_CLIENTS = 2 #Sets the required number of clients to start the game
+clients = [] #The list of clients to ensure we can remove them properly later, holds a tuple of (conn, paddleSide)
+userCount = 0 #Number of users in the server
+running = False #Whether the server is running or not
+clientsLock = threading.Lock()#Helps remove race conditions
+twoClientsConnected = threading.Event()#Prevents server from running without the threading event flag being set
 
+#Sends the messages to all clients within the server
 def broadcast(message):
     with clientsLock:
         for c, _ in clients:
@@ -38,6 +38,7 @@ def broadcast(message):
 MSG_PATTERN = re.compile(
     r'PN:(?P<name>\w+):PP:(?P<pos>\d+):BX:(?P<bx>\d+):BY:(?P<by>\d+):LS:(?P<lscore>\d+):RS:(?P<rscore>\d+):TM:(?P<time>\d+)')
 
+#Parses the game state to then be sent to each client in the server for game state updating
 def parse_game_state(message: str):
     match = MSG_PATTERN.match(message)
     if match:
@@ -52,7 +53,7 @@ def parse_game_state(message: str):
         print(f"[WARNING] Could not parse message: {message}")
         return {}
 
-
+#The main threaded function for handling each client individually
 def handle_client(conn: socket.socket, addr):
     global usercount, running
     try:
@@ -73,9 +74,13 @@ def handle_client(conn: socket.socket, addr):
     except ConnectionResetError:
         pass
     finally:
+        #Finally ends a handle_client thread by removing its instance of itself in the list and then closing and reducing the number
+        #of clients in the usercount variable by 1, this would be useful if we had more time to implement a way of continuously playing more
+        #games after finishing one and also handling spectator clients
         with clientsLock:
+            #This finds the one client in the client list and removes it from the list of tuples
             clients[:] = [(c, side) for c, side in clients if c != conn]
-        print(f"[CLIENT DISCONNECT] The client: {conn} has disconnected from the server!")
+            print(f"[CLIENT DISCONNECT] The client: {conn} has disconnected from the server!")
         conn.close()
         usercount -= 1
         if usercount <= 1:
@@ -118,10 +123,13 @@ def start_server():
     acceptThread = threading.Thread(target=accept_loop, daemon=True)
     acceptThread.start()
 
+# The server is running
     while running:
+    #The server is waiting for the two users to finally join the server
         print("[SERVER] Waiting for two clients to connect... Will time out in 180 seconds")
         twoClientsConnected.wait(timeout=180)
 
+    #The server will never run this if it times out, given that the twoClientsConnected flag will never be set
         if twoClientsConnected.is_set():
             print("[SERVER] Two clients connected, starting game.")
             with clientsLock:
