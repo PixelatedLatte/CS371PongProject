@@ -37,7 +37,7 @@ def playGame(screenWidth:int, screenHeight:int, playerPaddle:str, client:socket.
 
     # Display objects
     screen = pygame.display.set_mode((screenWidth, screenHeight))
-    pygame.Rect(0,0,0,0)
+    winMessage = pygame.Rect(0,0,0,0)
     topWall = pygame.Rect(-10,0,screenWidth+20, 10)
     bottomWall = pygame.Rect(-10, screenHeight-10, screenWidth+20, 10)
     centerLine = []
@@ -193,8 +193,8 @@ def playGame(screenWidth:int, screenHeight:int, playerPaddle:str, client:socket.
         pygame.draw.rect(screen, WHITE, topWall)
         pygame.draw.rect(screen, WHITE, bottomWall)
         scoreRect = updateScore(lScore, rScore, screen, WHITE, scoreFont)
-        pygame.display.update([topWall, bottomWall, ball, leftPaddle, rightPaddle, scoreRect, winMessage])
-        clock.tick(60)
+        pygame.display.update([topWall, bottomWall, ball.rect, leftPaddle.rect, rightPaddle.rect, scoreRect, winMessage])
+
         # =========================================================================================
         # Now send our update to the server (after the host has updated the ball so it sends authoritative coords)
         try:
@@ -211,6 +211,7 @@ def playGame(screenWidth:int, screenHeight:int, playerPaddle:str, client:socket.
         # This number should be synchronized between you and your opponent.  If your number is larger
         # then you are ahead of them in time, if theirs is larger, they are ahead of you, and you need to
         # catch up (use their info)
+        clock.tick(60)
         sync += 1
 
         
