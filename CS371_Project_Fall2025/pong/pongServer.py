@@ -19,7 +19,6 @@ from time import time
 
 REQUIRED_NUM_CLIENTS = 2 #Sets the required number of clients to start the game
 clients = [] #The list of clients to ensure we can remove them properly later, holds a tuple of (conn, paddleSide)
-userCount = 0 #Number of users in the server
 running = False #Whether the server is running or not
 clientsLock = threading.Lock()#Helps remove race conditions
 twoClientsConnected = threading.Event()#Prevents server from running without the threading event flag being set
