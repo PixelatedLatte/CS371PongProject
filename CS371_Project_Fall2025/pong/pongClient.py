@@ -62,13 +62,13 @@ def playGame(screenWidth:int, screenHeight:int, playerPaddle:str, client:socket.
 
     lScore = 0
     rScore = 0
+
     sync = 0
 
-    # Determine authority: host simulates the ball
-    global isHost
-    isHost = (playerPaddle == "left")
-
     while True:
+        # Wiping the screen
+        screen.fill((0,0,0))
+
         # Getting keypress events
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
@@ -77,18 +77,13 @@ def playGame(screenWidth:int, screenHeight:int, playerPaddle:str, client:socket.
             elif event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_DOWN:
                     playerPaddleObj.moving = "down"
+
                 elif event.key == pygame.K_UP:
                     playerPaddleObj.moving = "up"
+
             elif event.type == pygame.KEYUP:
                 playerPaddleObj.moving = ""
 
-        # =========================================================================================
-        # PROCESS NETWORK UPDATES *BEFORE* DRAWING ANYTHING
-        # This prevents old paddle/ball pixels from being left on the screen
-        # =========================================================================================
-            # drain the queue and apply the most recent state(s)
-        # ======================= NETWORK UPDATE LOOP =======================
-        # Maintain latest message per paddle
         latest_messages = {"left": {}, "right": {}}
 
         while not msg_queue.empty():
@@ -130,16 +125,16 @@ def playGame(screenWidth:int, screenHeight:int, playerPaddle:str, client:socket.
             print(f"[SYNC] Left time: {left['time']}, Right time: {right['time']}, "
                 f"Authoritative: {authoritative['name']}")
 
-
-
-        # Now clear the screen (must happen AFTER network updates)
-        screen.fill((0,0,0))
+        #screen.fill((0,0,0))
 
         # Update the player paddle and opponent paddle's location on the screen
-        if playerPaddleObj.moving == "down" and playerPaddleObj.rect.bottom < screenHeight - 10:
-            playerPaddleObj.rect.y += playerPaddleObj.speed
-        elif playerPaddleObj.moving == "up" and playerPaddleObj.rect.top > 10:
-            playerPaddleObj.rect.y -= playerPaddleObj.speed
+        for paddle in [playerPaddleObj, opponentPaddleObj]:
+            if paddle.moving == "down":
+                if paddle.rect.bottomleft[1] < screenHeight-10:
+                    paddle.rect.y += paddle.speed
+            elif paddle.moving == "up":
+                if paddle.rect.topleft[1] > 10:
+                    paddle.rect.y -= paddle.speed
 
         # If the game is over, display the win message
         if lScore > 9 or rScore > 9:
@@ -147,7 +142,8 @@ def playGame(screenWidth:int, screenHeight:int, playerPaddle:str, client:socket.
             textSurface = winFont.render(winText, False, WHITE, (0,0,0))
             textRect = textSurface.get_rect()
             textRect.center = (int(screenWidth/2), int(screenHeight/2))
-            screen.blit(textSurface, textRect)
+            winMessage = screen.blit(textSurface, textRect)
+            
             pygame.display.update()
             time.sleep(3)
             pygame.quit()
@@ -155,9 +151,7 @@ def playGame(screenWidth:int, screenHeight:int, playerPaddle:str, client:socket.
             return
         else:
             # ==== Ball Logic =====================================================================
-            # Only the host runs the physics and collision logic.
-            # Clients will receive the authoritative ball position from the server and must NOT call updatePos.
-            #if isHost:
+ 
             ball.updatePos()
 
                 # If the ball makes it past the edge of the screen, update score, etc.
@@ -198,8 +192,9 @@ def playGame(screenWidth:int, screenHeight:int, playerPaddle:str, client:socket.
             
         pygame.draw.rect(screen, WHITE, topWall)
         pygame.draw.rect(screen, WHITE, bottomWall)
-        updateScore(lScore, rScore, screen, WHITE, scoreFont)
-
+        scoreRect = updateScore(lScore, rScore, screen, WHITE, scoreFont)
+        pygame.display.update([topWall, bottomWall, ball, leftPaddle, rightPaddle, scoreRect, winMessage])
+        clock.tick(60)
         # =========================================================================================
         # Now send our update to the server (after the host has updated the ball so it sends authoritative coords)
         try:
@@ -212,8 +207,6 @@ def playGame(screenWidth:int, screenHeight:int, playerPaddle:str, client:socket.
             return
         # =========================================================================================
 
-        pygame.display.update()
-        clock.tick(60)
 
         # This number should be synchronized between you and your opponent.  If your number is larger
         # then you are ahead of them in time, if theirs is larger, they are ahead of you, and you need to
