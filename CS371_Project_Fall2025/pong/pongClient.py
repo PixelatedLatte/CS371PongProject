@@ -65,6 +65,9 @@ def playGame(screenWidth:int, screenHeight:int, playerPaddle:str, client:socket.
 
     sync = 0
 
+    # Use the global paddleSide as requested (keeps compatibility with the server/client handshake)
+    global paddleSide
+
     while True:
         # Took out screen.fill((0,0,0)) and moved it as player bars and balls 
         # had white trails that were not leaving the screen
@@ -232,7 +235,7 @@ def playGame(screenWidth:int, screenHeight:int, playerPaddle:str, client:socket.
 # Regular expression pattern to parse incoming game state messages
 # Parses name, paddle position, ball x/y, left/right score, and sync time
 MSG_PATTERN = re.compile(
-    r'PN:(?P<name>\w+):PP:(?P<pos>\d+):BX:(?P<bx>\d+):BY:(?P<by>\d+):LS:(?P<lscore>\d+):RS:(?P<rscore>\d+):TM:(?P<time>\d+)')
+    r'PN:(?P<name>\w+):PP:(?P<pos>-?\d+):BX:(?P<bx>-?\d+):BY:(?P<by>-?\d+):LS:(?P<lscore>\d+):RS:(?P<rscore>\d+):TM:(?P<time>\d+)')
 
 # Parses the game state message received from the server
 def parse_game_state(message: str):
