@@ -1,9 +1,9 @@
 # =================================================================================================
 # Contributing Authors:	    Jacob Blankenship, Daniel Krutsick
 # Email Addresses:          jrbl245@uky.edu, djkr228@uky.edu
-# Date:                     11/3/2025
+# Date:                     11/24/2025
 # Purpose:                  The Client member of our Pong game
-# Misc:                     <Not Required.  Anything else you might want to include>
+# Misc:                     to run the pongClient.py file directly run "python pongClient.py"
 # =================================================================================================
 import queue
 import pygame
