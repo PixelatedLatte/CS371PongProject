@@ -15,7 +15,6 @@ import socket
 from time import sleep
 import threading
 import re
-from time import time
 
 REQUIRED_NUM_CLIENTS = 2 #Sets the required number of clients to start the game
 clients = [] #The list of clients to ensure we can remove them properly later, holds a tuple of (conn, paddleSide)
@@ -24,7 +23,7 @@ clientsLock = threading.Lock()#Helps remove race conditions
 twoClientsConnected = threading.Event()#Prevents server from running without the threading event flag being set
 
 #Sends the messages to all clients within the server
-def broadcast(message):
+def broadcast(message) -> None:
     with clientsLock:
         for c, _ in clients:
             try:
@@ -37,7 +36,7 @@ MSG_PATTERN = re.compile(
     r'PN:(?P<name>\w+):PP:(?P<pos>-?\d+):BX:(?P<bx>-?\d+):BY:(?P<by>-?\d+):LS:(?P<lscore>\d+):RS:(?P<rscore>\d+):TM:(?P<time>\d+)'
 )
 #Parses the game state to then be sent to each client in the server for game state updating
-def parse_game_state(message: str):
+def parse_game_state(message: str) -> dict:
     match = MSG_PATTERN.match(message)
     if match:
         data1 = match.groupdict()
@@ -52,7 +51,7 @@ def parse_game_state(message: str):
         return {}
 
 #The main threaded function for handling each client individually
-def handle_client(conn: socket.socket, addr):
+def handle_client(conn: socket.socket, addr) -> None:
     global usercount, running
     buffer = ""
     try:
@@ -99,7 +98,7 @@ def handle_client(conn: socket.socket, addr):
             running = False
 #Starts the server, accepts clients, and starts the game when two clients are connected
 
-def start_server():
+def start_server() -> int:
     global clients, usercount, running
     running = True
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)

@@ -8,6 +8,7 @@
 import queue
 import pygame
 import re
+from typing import Union
 
 import tkinter as tk
 import sys
@@ -238,7 +239,7 @@ MSG_PATTERN = re.compile(
     r'PN:(?P<name>\w+):PP:(?P<pos>-?\d+):BX:(?P<bx>-?\d+):BY:(?P<by>-?\d+):LS:(?P<lscore>\d+):RS:(?P<rscore>\d+):TM:(?P<time>\d+)')
 
 # Parses the game state message received from the server
-def parse_game_state(message: str):
+def parse_game_state(message: str) -> Union[dict, None]:
 
     # Use regex to parse the message
     match = MSG_PATTERN.match(message)
@@ -255,7 +256,7 @@ def parse_game_state(message: str):
         return None
 
 # Thread function to continuously receive messages from the server
-def receive_messages(sock):
+def receive_messages(sock) -> None:
     # Creates a buffer to hold incomplete messages
     buffer = ""
     while True:
@@ -344,7 +345,7 @@ def joinServer(ip:str, port:str, errorLabel:tk.Label, app:tk.Tk) -> None:
     errorLabel.update()     
 
 # This displays the opening screen, you don't need to edit this (but may if you like)
-def startScreen():
+def startScreen() -> None: 
     print("Starting Pong Client...")
     app = tk.Tk()
     app.title("Server Info")
