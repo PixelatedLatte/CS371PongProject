@@ -23,7 +23,10 @@ clients = [] #The list of clients to ensure we can remove them properly later, h
 running = False #Whether the server is running or not
 clientsLock = threading.Lock()#Helps remove race conditions
 twoClientsConnected = threading.Event()#Prevents server from running without the threading event flag being set
-#Sends the messages to all clients within the server
+# Author:  Daniel Krutsick
+# Purpose:  Send each transmission from each client to all clients in the server
+# Pre: The pre condition is that the message is already encoded and all clients are connected
+# Post:  The post conditions are that the clients received the transmission sent
 def broadcast(message) -> None:
     with clientsLock:
         for c, _ in clients:
@@ -56,7 +59,10 @@ def parse_game_state(message: str) -> dict:
     else:
         print(f"[WARNING] Could not parse message: {message}")
         return {}
-#The main threaded function for handling each client individually
+# Author: Daniel Krutsick
+# Purpose: Handles each client separately with each call of the handle client function as a thread
+# Pre: Pre condition is that the client had successfully connected and has a socket connection and address
+# Post: Post condition is that the client is removed from the list and closed and updates userscore to be 1 less than the previous number
 def handle_client(conn: socket.socket, addr) -> None:
     global usercount, running
     buffer = ""
@@ -95,7 +101,10 @@ def handle_client(conn: socket.socket, addr) -> None:
         usercount -= 1
         if usercount <= 1:
             running = False
-#Starts the server, accepts clients, and starts the game when two clients are connected
+# Author: Daniel Krutsick
+# Purpose: Starts the server and runs the loop to handle all clients attempting to connect
+# Pre: The pre condition is that the host IP and port number is correct
+# Post: The post condition is that the server is properly closed down and returns a 0 proving that it has completed
 def start_server() -> int:
     global clients, usercount, running
     running = True
