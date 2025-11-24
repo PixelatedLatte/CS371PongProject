@@ -21,6 +21,15 @@ from assets.code.helperCode import *
 # The main game loop, called after connecting to the server and getting the required info
 # Added msg_queue parameter to receive messages from the server, as our client code caches 
 # incoming messages in a queue (see receive_messages function)
+
+# Author:  Initially provided by the instructor, modified by Jacob Blankenship
+# Purpose:  Main code to handle the Pong game client side, including movement, drawing, and
+#       sending/receiving game state to/from the server.
+# Pre:  Expects that there is a valid connection to the server via the client socket,
+#       and that msg_queue is being populated with incoming messages from the server,
+#       as well as valid screen dimensions and player paddle side.
+# Post:  Runs the Pong game until a player wins or the connection is lost, then exits. Game does
+#       not return any values, or return to another function.
 def playGame(screenWidth:int, screenHeight:int, playerPaddle:str, client:socket.socket, msg_queue:queue.Queue) -> None:
     
     print("The game started!")
@@ -239,6 +248,14 @@ MSG_PATTERN = re.compile(
     r'PN:(?P<name>\w+):PP:(?P<pos>-?\d+):BX:(?P<bx>-?\d+):BY:(?P<by>-?\d+):LS:(?P<lscore>\d+):RS:(?P<rscore>\d+):TM:(?P<time>\d+)')
 
 # Parses the game state message received from the server
+
+# Author:  Created by Jacob Blankenship
+# Purpose:  Parses the Pong game state message received from the server.
+# Pre:  Expects a string message formatted according to the MSG_PATTERN regex, and that this
+#       is called during the PlayGame function, as well as a valid an set up queue to hold
+#       incoming messages from the server.
+# Post:  Returns a dictionary with the parsed game state values if successful,
+#      otherwise returns None if the message could not be parsed.
 def parse_game_state(message: str) -> Union[dict, None]:
 
     # Use regex to parse the message
@@ -256,6 +273,15 @@ def parse_game_state(message: str) -> Union[dict, None]:
         return None
 
 # Thread function to continuously receive messages from the server
+
+# Author:  Created by Jacob Blankenship
+# Purpose:  Continuously receives messages from the server and adds them to a queue, threaded
+#       to allow the main game loop to run while receiving messages in the background.
+# Pre:  Expects a valid socket connection to the server, and a properly set up queue to hold
+#       incoming messages. As well as be called during the PlayGame() function.
+# Post:  Returns nothing, but continuously adds received messages to the provided queue until
+#       the connection is lost or an error occurs. Queue items are split to be individual messages
+#       based on newline characters so that each item is an individual game-state.
 def receive_messages(sock) -> None:
     # Creates a buffer to hold incomplete messages
     buffer = ""
@@ -281,6 +307,13 @@ def receive_messages(sock) -> None:
             print("Receive error:", e)
             break
 
+# Author:  Initially created my instructer, heavily modified by Jacob Blankenship
+# Purpose:  Connects to the Pong server using the provided IP and port, initially 
+#           assigns the player to a paddle side, then starts the game loop.
+# Pre:  Expects valid IP address and port strings, as well as a tkinter label and app,
+#       IP and port are provided by the user via the tkinter GUI in the startScreen() function.
+# Post: Returns nothing, but starts the Pong game client after connecting to the server,
+#       can also error out before closing the game.
 def joinServer(ip:str, port:str, errorLabel:tk.Label, app:tk.Tk) -> None:
 
     # Purpose:      This method is fired when the join button is clicked
@@ -345,6 +378,15 @@ def joinServer(ip:str, port:str, errorLabel:tk.Label, app:tk.Tk) -> None:
     errorLabel.update()     
 
 # This displays the opening screen, you don't need to edit this (but may if you like)
+
+# Author:  Created by Instructor
+# Purpose:  Displays the starting tkinter GUI to get server IP and port from user,
+#           then calls joinServer() when the user clicks the Join button.
+# Pre:  Expects no parameters, called when the pongClient.py file is run directly through the
+#       main function.
+# Post: Returns nothing, but starts the tkinter GUI for user input, then calls joinServer()
+#       to connect to the server and start the game. Does display an error label to display
+#       connection status messages to the user.
 def startScreen() -> None: 
     print("Starting Pong Client...")
     app = tk.Tk()
