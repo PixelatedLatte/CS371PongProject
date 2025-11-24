@@ -1,9 +1,11 @@
 # =================================================================================================
 # Contributing Authors:	    Jacob Blankenship, Daniel Krutsick
 # Email Addresses:          jrbl245@uky.edu, djkr228@uky.edu
-# Date:                     11/3/2025
+# Date:                     11/24/2025
 # Purpose:                  The Server member of our Pong game
-# Misc:                     <Not Required.  Anything else you might want to include>
+# Misc:                     To run the pongServer.py file directly run "python pongServer.py",
+#                           ensure the port you choose is open and not blocked by firewall and
+#                           that the server is running before any clients attempt to connect.
 # =================================================================================================
 # TO FREE UP PORT NUMBER ON WINDOWS, USE THE FOLLOWING COMMAND IN CMD:
 # netstat -ano | findstr :<your_port_number>
@@ -34,6 +36,13 @@ MSG_PATTERN = re.compile(
     r'PN:(?P<name>\w+):PP:(?P<pos>-?\d+):BX:(?P<bx>-?\d+):BY:(?P<by>-?\d+):LS:(?P<lscore>\d+):RS:(?P<rscore>\d+):TM:(?P<time>\d+)'
 )
 #Parses the game state to then be sent to each client in the server for game state updating
+
+# Author:  Created by Jacob Blankenship
+# Purpose:  Parses the Pong game state message received from the client(s).
+# Pre:  Expects a string message formatted according to the MSG_PATTERN regex, and that this
+#       is called during the handleclient() function.
+# Post:  Returns a dictionary with the parsed game state values if successful,
+#      otherwise returns an empty dict if the message could not be parsed.
 def parse_game_state(message: str) -> dict:
     match = MSG_PATTERN.match(message)
     if match:
